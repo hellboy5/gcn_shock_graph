@@ -11,6 +11,7 @@ from math import pi
 from math import cos
 from math import sin
 from operator import itemgetter
+from scipy.spatial.distance import cdist
 
 node_order=dict()
 node_mapping=dict()
@@ -156,6 +157,10 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
      #create feature matrix
      feature_matrix=np.zeros((numb_nodes,edge_features))
 
+     #node locations
+     locations =[]
+     degree_three_nodes=[]
+     
      #populate adj_matrix
      for key in edge_mapping:
           adj_edges=edge_mapping[key]
@@ -170,9 +175,14 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
 
           # populate points of node location
           item=node_mapping[key].pt[0]
-          feature_matrix[row][0]=item[1]/NI
-          feature_matrix[row][1]=item[0]/NJ
+          feature_matrix[row][0]=item[1]
+          feature_matrix[row][1]=item[0]
 
+          locations.append(item)
+          degree=len(node_mapping[key].theta)
+          if  degree >= 3:
+               degree_three_nodes.append(item)
+          
           #populate radius of node
           item=node_mapping[key].radius[0]
           feature_matrix[row][2]=item
@@ -193,10 +203,9 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
           start=9
           for idx in range(0,len(node_mapping[key].plus_pt)):
                item=node_mapping[key].plus_pt[idx]
-               feature_matrix[row][0+idx*2+start]=item[1]/NI
-               feature_matrix[row][1+idx*2+start]=item[0]/NJ
+               feature_matrix[row][0+idx*2+start]=item[1]
+               feature_matrix[row][1+idx*2+start]=item[0]
           
-
           #populate plus_theta of node
           start=15
           for idx in range(0,len(node_mapping[key].plus_theta)):
@@ -219,8 +228,31 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
           feature_matrix[row][start]=out
 
 
+     sorted_locations=sorted(locations,key=itemgetter(0,1),reverse=False)
+     ul_corner=sorted_locations[0]
+     lr_corner=sorted_locations[-1]
+     center=((ul_corner[0]+lr_corner[0])/2.0,(ul_corner[1]+lr_corner[1])/2.0)
+     high_order_nodes=np.array(degree_three_nodes)
+     temp=np.zeros((1,2))
+     temp[0][0]=center[0]
+     temp[0][1]=center[1]
+     distances=np.squeeze(cdist(high_order_nodes,temp))
+     reference_ind=np.argsort(distances)
+     reference_pt=high_order_nodes[reference_ind[0]]
+
+     feature_matrix[:,:2]-=reference_pt
+     feature_matrix[:,9:11]-=reference_pt
+     feature_matrix[:,11:13]-=reference_pt
+     feature_matrix[:,13:15]-=reference_pt
+
+     max_offsets=np.amax(np.abs(feature_matrix[:,:2]),axis=0)
      max_radius=np.amax(feature_matrix,axis=0)[2]
+
+     feature_matrix[:,:2] /= max_offsets
      feature_matrix[:,2] /= max_radius
+     feature_matrix[:,9:11] /= max_offsets
+     feature_matrix[:,11:13] /= max_offsets
+     feature_matrix[:,13:15] /= max_offsets
      return adj_matrix,feature_matrix
     
 def convertEsfFile(esf_file,image_file):
