@@ -253,7 +253,10 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
      feature_matrix[:,9:11] /= max_offsets
      feature_matrix[:,11:13] /= max_offsets
      feature_matrix[:,13:15] /= max_offsets
-     return adj_matrix,feature_matrix
+
+     debug=np.concatenate((reference_pt,max_offsets,np.array([max_radius])),
+                          axis=0)
+     return adj_matrix,feature_matrix,debug
     
 def convertEsfFile(esf_file,image_file):
 
@@ -282,14 +285,17 @@ def convertEsfFile(esf_file,image_file):
      read_node_samples(sample_line,lines,sample_data,node_info)
      read_edge_header(sample_line,lines,sample_data,edge_offset,numb_edges)
      compute_sorted_order()
-     adj_matrix,feature_matrix=compute_adj_feature_matrix(edge_features,NI,NJ)
+     adj_matrix,feature_matrix,ref_point=\
+     compute_adj_feature_matrix(edge_features,NI,NJ)
 
      fname_feature=os.path.splitext(esf_file)[0]+'_feature.txt'
      fname_adj_matrix=os.path.splitext(esf_file)[0]+'_adj_matrix.txt'
+     fname_debug_info=os.path.splitext(esf_file)[0]+'_debug.txt'
      
      np.savetxt(fname_feature,feature_matrix,delimiter=' ')
      np.savetxt(fname_adj_matrix,adj_matrix,delimiter=' ')
-
+     np.savetxt(fname_debug_info,ref_point,delimiter=' ')
+     
 if __name__ == '__main__':
      esf_file=sys.argv[1]
      image_file=sys.argv[2]
