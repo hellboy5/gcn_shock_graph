@@ -56,7 +56,7 @@ def read_node_header(node_line,lines,numb_nodes):
           node_mapping[int(node_id)]=samp
           starts=[match.start() for match in re.finditer(re.escape('['), text)]
           ends=[match.start() for match in re.finditer(re.escape(']'), text)]
-          results=zip(starts,ends)
+          results=list(zip(starts,ends))
           adj_nodes=text[results[0][0]+1:results[0][1]].split(' ')
           adj_samples=text[results[1][0]+1:results[1][1]].split(' ')
           for key in adj_samples:
@@ -71,7 +71,7 @@ def read_node_samples(sample_line,lines,sample_data,node_info):
      end=sample_line+numb_mappings*sample_data
      for ln in range(start,end,sample_data):
           
-          idx=range(ln+1,ln+1+node_info)
+          idx=list(range(ln+1,ln+1+node_info))
           
           # get sample id
           text=lines[idx[0]]
@@ -81,11 +81,11 @@ def read_node_samples(sample_line,lines,sample_data,node_info):
           text=lines[idx[1]]
           starts=[match.start() for match in re.finditer(re.escape('('), text)]
           end=[match.start() for match in re.finditer(re.escape(')'), text)]
-          results=zip(starts,end)
+          results=list(zip(starts,end))
           x,y,radius=text[results[1][0]+1:results[1][1]].split(',')
           pt=(float(x),float(y))
           radius=float(radius)
-     
+               
           # get theta
           text=lines[idx[5]]
           theta=np.deg2rad(float(text.split(' ')[1]))
@@ -124,7 +124,7 @@ def read_edge_header(sample_line,lines,sample_data,edge_offset,numb_edges):
           text=lines[idx]
           starts=[match.start() for match in re.finditer(re.escape('['), text)]
           end=[match.start() for match in re.finditer(re.escape(']'), text)]
-          results=zip(starts,end)
+          results=list(zip(starts,end))
           source,target=text[results[0][0]+1:results[0][1]].split(' ')
           edge_mapping[int(source)].append(int(target))
 
@@ -241,9 +241,17 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
      reference_pt=high_order_nodes[reference_ind[0]]
 
      feature_matrix[:,:2]-=reference_pt
-     feature_matrix[:,9:11]-=reference_pt
-     feature_matrix[:,11:13]-=reference_pt
-     feature_matrix[:,13:15]-=reference_pt
+
+     zero_set=np.array([0.0,0.0])
+     
+     for row_idx in range(0,feature_matrix.shape[0]):
+          feature_matrix[row_idx,9:11]-=reference_pt
+
+          if np.array_equal(feature_matrix[row_idx,11:13],zero_set)==False:
+               feature_matrix[row_idx,11:13]-=reference_pt
+               
+          if np.array_equal(feature_matrix[row_idx,13:15],zero_set)==False:
+               feature_matrix[row_idx,13:15]-=reference_pt
 
      max_offsets=np.amax(np.abs(feature_matrix[:,:2]),axis=0)
      max_radius=np.amax(feature_matrix,axis=0)[2]

@@ -7,10 +7,10 @@ function []=plot_graph(image_name)
 I=imread([path '/' name '.png']);
 
 %Read esf file
-[shock_samples,shock_edges]=read_shock_file([ path '/' name '.esf']);
-F=textread([path '/' name  '_feature.txt']);
-A=textread([path '/' name  '_adj_matrix.txt']);
-debug=textread([path '/' name  '_debug.txt']);
+[shock_samples,shock_edges]=read_shock_file([ path '/' name '_inout.esf']);
+F=textread([path '/' name  '_inout_feature.txt']);
+A=textread([path '/' name  '_inout_adj_matrix.txt']);
+debug=textread([path '/' name  '_inout_debug.txt']);
 cons=read_cem_file([path '/' name  '_to_msel_200_1-5_1.cemv']);
 
 ref_pt=debug(1:2);
@@ -30,44 +30,45 @@ draw_contours(cons,0,0,'c');
 plot(G,'Xdata',xdata,'Ydata',ydata)
 
 for s=1:size(F,1)
-
-     pt=[xdata(s) ydata(s)];
-     rad=F(s,3)*max_radius;
-     viscircles(pt,rad,'Color','m');
-%     % loop over theta
-%    for t=4:6
-%         
-%         ang=F(s,t);
-%         
-%         if ang > 0
-%             dx=cos(ang);
-%             dy=sin(ang);
-%             quiver(pt(1)+1,pt(2)+1,dx,dy,10,'Color','c');
-%         end
-%     end
-%     
-%     for t=7:9
-%         
-%         ang=F(s,t);
-%         
-%         if ang > 0
-%             dx=cos(ang);
-%             dy=sin(ang);
-%             quiver(pt(1)+1,pt(2)+1,dx,dy,10,'Color','m');
-%         end
-%     end
-%     
+    
+    %      pt=[xdata(s) ydata(s)];
+    %      rad=F(s,3)*max_radius;
+    %      viscircles(pt,rad,'Color','m');
+    %     % loop over theta
+    %    for t=4:6
+    %
+    %         ang=F(s,t);
+    %
+    %         if ang > 0
+    %             dx=cos(ang);
+    %             dy=sin(ang);
+    %             quiver(pt(1)+1,pt(2)+1,dx,dy,10,'Color','c');
+    %         end
+    %     end
+    %
+    %     for t=7:9
+    %
+    %         ang=F(s,t);
+    %
+    %         if ang > 0
+    %             dx=cos(ang);
+    %             dy=sin(ang);
+    %             quiver(pt(1)+1,pt(2)+1,dx,dy,10,'Color','m');
+    %         end
+    %     end
+    %
     
     
-     for t=10:2:15
+    for t=10:2:15
         
-        conx=((F(s,t+1)*max_offsets(2))+ref_pt(2))+1;
-        cony=((F(s,t)*max_offsets(1))+ref_pt(1))+1;
 
         
+        if F(s,t) ~= 0 && F(s,t+1) ~= 0
+            conx=((F(s,t+1)*max_offsets(2))+ref_pt(2))+1;
+            cony=((F(s,t)*max_offsets(1))+ref_pt(1))+1;
+            plot(conx,cony,'r.','MarkerSize',20)
+        end
         
-        plot(conx,cony,'r.','MarkerSize',20)
-       
     end
     
 end
