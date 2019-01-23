@@ -19,7 +19,8 @@ samp_to_node_mapping=dict()
 edge_mapping=defaultdict(list)
 Sample=namedtuple('Sample','pt type radius theta phi plus_pt \
 minus_pt plus_theta minus_theta')
-     
+highest_degree=0
+
 def speedToPhi(speed):
      if speed != 0 and speed < 99990:
           phi = acos(-1.0/speed);
@@ -44,6 +45,7 @@ def translatePoint(pt,v,length):
 # process node header data
 def read_node_header(node_line,lines,numb_nodes):
 
+     global highest_degree
      for ln in range(node_line,node_line+numb_nodes):
           text=lines[ln]
           node_id,label=text.split(' ')[:2]
@@ -59,6 +61,7 @@ def read_node_header(node_line,lines,numb_nodes):
           results=list(zip(starts,ends))
           adj_nodes=text[results[0][0]+1:results[0][1]].split(' ')
           adj_samples=text[results[1][0]+1:results[1][1]].split(' ')
+          highest_degree=max(highest_degree,len(adj_samples)-1)
           for key in adj_samples:
                if len(key):
                     samp_to_node_mapping[int(key)]=int(node_id)
@@ -159,7 +162,7 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
 
      #node locations
      locations =[]
-     degree_three_nodes=[]
+     highest_degree_nodes=[]
      
      #populate adj_matrix
      for key in edge_mapping:
@@ -180,8 +183,8 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
 
           locations.append(item)
           degree=len(node_mapping[key].theta)
-          if  degree >= 3:
-               degree_three_nodes.append(item)
+          if  degree >= highest_degree:
+               highest_degree_nodes.append(item)
           
           #populate radius of node
           item=node_mapping[key].radius[0]
@@ -232,7 +235,7 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
      ul_corner=sorted_locations[0]
      lr_corner=sorted_locations[-1]
      center=((ul_corner[0]+lr_corner[0])/2.0,(ul_corner[1]+lr_corner[1])/2.0)
-     high_order_nodes=np.array(degree_three_nodes)
+     high_order_nodes=np.array(highest_degree_nodes)
      temp=np.zeros((1,2))
      temp[0][0]=center[0]
      temp[0][1]=center[1]
