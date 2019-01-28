@@ -3,6 +3,7 @@ import sys
 import os
 import scipy.misc
 import numpy as np
+import h5py
 
 from collections import defaultdict
 from collections import namedtuple
@@ -299,13 +300,16 @@ def convertEsfFile(esf_file,image_file):
      adj_matrix,feature_matrix,ref_point=\
      compute_adj_feature_matrix(edge_features,NI,NJ)
 
-     fname_feature=os.path.splitext(esf_file)[0]+'_feature.txt'
-     fname_adj_matrix=os.path.splitext(esf_file)[0]+'_adj_matrix.txt'
-     fname_debug_info=os.path.splitext(esf_file)[0]+'_debug.txt'
+     nodes=adj_matrix.shape[0]
      
-     np.savetxt(fname_feature,feature_matrix,delimiter=' ')
-     np.savetxt(fname_adj_matrix,adj_matrix,delimiter=' ')
-     np.savetxt(fname_debug_info,ref_point,delimiter=' ')
+     fname_graph=os.path.splitext(esf_file)[0]+'-n'+str(nodes)+'-shock_graph.h5'
+     hf = h5py.File(fname_graph,'w')
+
+     hf.create_dataset('feature',data=feature_matrix)
+     hf.create_dataset('adj_matrix',data=adj_matrix)
+     hf.create_dataset('debug',data=ref_point)
+
+     hf.close()
      
 if __name__ == '__main__':
      esf_file=sys.argv[1]
