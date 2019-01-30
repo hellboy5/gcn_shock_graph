@@ -22,7 +22,7 @@ A = h5read(sg_file,'/adj_matrix').';
 debug=h5read(sg_file,'/debug');
 
 
-cons=read_cem_file([path '/' name  '_to_msel_200_1-5_1.cemv']);
+cons=read_cemv_file([path '/' name  '_to_msel_200_1-5_1.cemv']);
 
 ref_pt=debug(1:2);
 max_offsets=debug(3:4);
