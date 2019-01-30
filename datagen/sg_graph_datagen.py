@@ -1,5 +1,9 @@
 import numpy as np
 import keras 
+import glob
+import random
+import h5py
+import os
 
 class ShockGraphDataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
@@ -10,17 +14,17 @@ class ShockGraphDataGenerator(keras.utils.Sequence):
         self.directory = directory
         self.labels = labels
         self.numb_nodes = numb_nodes
-        self.numb_attrs = attrs
+        self.numb_attrs = numb_attrs
         self.batch_size=batch_size
         self.n_classes = n_classes
         self.shuffle = shuffle
         self.files=[]
-        self.class_mapping=[]
-        
+        self.class_mapping={}
+
         self.__gen_file_list()
         self.__parse_label()
         self.on_epoch_end()
-
+        
     def __len__(self):
         'Denotes the number of batches per epoch'
         return int(np.ceil(len(self.files) / self.batch_size))
@@ -29,16 +33,18 @@ class ShockGraphDataGenerator(keras.utils.Sequence):
         'Generate one batch of data'
         # Generate indexes of the batch
         samples=np.arange(index*self.batch_size,(index+1)*self.batch_size)
-        filelist = self.files[np.remainder(samples,len(self.files))]
+        batch_indices = np.remainder(samples,len(self.files))
 
-        class_id=np.zeros(batch_size,)
-        adj_batch=np.zeros((batch_size,self.numb_nodes,self.numb_nodes))
-        F_batch=np.zeros((batch_size,self.numb_nodes,self.numb_attrs))
-        for idx in range(0,batch_size):
-            item=filelist[idx]
+        class_id=np.zeros(self.batch_size,)
+        adj_batch=np.zeros((self.batch_size,self.numb_nodes,self.numb_nodes))
+        feature_batch=np.zeros((self.batch_size,self.numb_nodes,self.numb_attrs))
+
+        for idx in range(0,len(batch_indices)):
+            item=self.files[batch_indices[idx]]
             adj_mat,feature_mat=self.__read_shock_graph(item)
 
             obj=os.path.basename(item)
+            obj=obj[:obj.find('-')]
             class_name=obj[:obj.rfind('_')]
             class_id[idx]=self.class_mapping[class_name]
 
@@ -46,7 +52,7 @@ class ShockGraphDataGenerator(keras.utils.Sequence):
             feature_batch[idx,:,:]=feature_mat
 
         Y=keras.utils.to_categorical(class_id, num_classes=self.n_classes)
-        return feature_batch,adj_batch,Y
+        return [feature_batch,adj_batch],Y
 
     def on_epoch_end(self):
         'Updates indexes after each epoch'
@@ -59,7 +65,6 @@ class ShockGraphDataGenerator(keras.utils.Sequence):
     def __parse_label(self):
         file=open(self.labels,'r')
         lines= file.read().splitlines() 
-
         for idx in range(0,len(lines)):
             self.class_mapping[lines[idx]]=idx
 
@@ -76,7 +81,7 @@ class ShockGraphDataGenerator(keras.utils.Sequence):
 
         # determine padding to max node size
         diff=self.numb_nodes-adj_matrix.shape[0]
-        
+
         pad_adj_matrix=np.pad(adj_matrix,
                               ((0,diff),(0,diff)),
                               'constant',constant_values=(0))

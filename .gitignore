@@ -2,4 +2,7 @@
 *.esf
 *.png
 *.jpg
+*.pyc
+*.*~
+*.bak
 .DS_Store
