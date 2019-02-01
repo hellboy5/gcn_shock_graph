@@ -43,12 +43,14 @@ class ShockGraphDataGenerator(keras.utils.Sequence):
             item=self.files[batch_indices[idx]]
             adj_mat,feature_mat=self.__read_shock_graph(item)
 
+            norm_adj_mat=self.__preprocess_adj_numpy(adj_mat)
+            
             obj=os.path.basename(item)
             obj=obj[:obj.find('-')]
             class_name=obj[:obj.rfind('_')]
             class_id[idx]=self.class_mapping[class_name]
 
-            adj_batch[idx,:,:]=adj_mat
+            adj_batch[idx,:,:]=norm_adj_mat
             feature_batch[idx,:,:]=feature_mat
 
         Y=keras.utils.to_categorical(class_id, num_classes=self.n_classes)
@@ -58,6 +60,20 @@ class ShockGraphDataGenerator(keras.utils.Sequence):
         'Updates indexes after each epoch'
         random.shuffle(self.files)
 
+    def __preprocess_adj_numpy(self,adj, symmetric=True):
+        adj = adj + np.eye(adj.shape[0])
+        adj = self.__normalize_adj_numpy(adj, symmetric)
+        return adj
+
+    def __normalize_adj_numpy(self,adj, symmetric=True):
+        if symmetric:
+            d = np.diag(np.power(np.array(adj.sum(1)), -0.5).flatten(), 0)
+            a_norm = adj.dot(d).transpose().dot(d)
+        else:
+            d = np.diag(np.power(np.array(adj.sum(1)), -1).flatten(), 0)
+            a_norm = d.dot(adj)
+        return a_norm
+        
     def __gen_file_list(self):
         self.files=glob.glob(self.directory+'/*.h5')
         random.shuffle(self.files)
