@@ -5,4 +5,5 @@
 *.pyc
 *.*~
 *.bak
+test.h5
 .DS_Store
