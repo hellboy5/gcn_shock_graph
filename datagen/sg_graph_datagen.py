@@ -59,7 +59,8 @@ class ShockGraphDataGenerator(keras.utils.Sequence):
 
     def on_epoch_end(self):
         'Updates indexes after each epoch'
-        random.shuffle(self.files)
+        if self.shuffle:
+            random.shuffle(self.files)
 
     def __preprocess_adj_numpy(self,adj, symmetric=True):
         adj = adj + np.eye(adj.shape[0])
@@ -77,7 +78,8 @@ class ShockGraphDataGenerator(keras.utils.Sequence):
         
     def __gen_file_list(self):
         self.files=glob.glob(self.directory+'/*.h5')
-        random.shuffle(self.files)
+        if self.shuffle:
+            random.shuffle(self.files)
 
     def __parse_label(self):
         file=open(self.labels,'r')
