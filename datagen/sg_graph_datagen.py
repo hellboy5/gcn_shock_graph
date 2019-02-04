@@ -4,6 +4,7 @@ import glob
 import random
 import h5py
 import os
+import re
 
 class ShockGraphDataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
@@ -46,7 +47,7 @@ class ShockGraphDataGenerator(keras.utils.Sequence):
             norm_adj_mat=self.__preprocess_adj_numpy(adj_mat)
             
             obj=os.path.basename(item)
-            obj=obj[:obj.find('-')]
+            obj=re.sub("_to_msel.*","",obj)
             class_name=obj[:obj.rfind('_')]
             class_id[idx]=self.class_mapping[class_name]
 

@@ -12,7 +12,7 @@ test_dir='/home/naraym1/cifar_100/test_dir'
 label_file='/home/naraym1/cifar_100/labels.txt'
 
 # Parameters
-params = {'numb_nodes': 261,
+params = {'numb_nodes': 294,
           'numb_attrs': 19,
           'batch_size': 64,
           'n_classes': 100,
@@ -33,12 +33,18 @@ output = MultiGraphCNN(100, 1, activation='relu')([feature_mat_input, adj_mat_in
 output = Dropout(0.2)(output)
 output = MultiGraphCNN(100, 1, activation='relu')([output, adj_mat_input])
 output = Dropout(0.2)(output)
+output = MultiGraphCNN(100, 1, activation='relu')([output, adj_mat_input])
+output = Dropout(0.2)(output)
+output = MultiGraphCNN(100, 1, activation='relu')([output, adj_mat_input])
+output = Dropout(0.2)(output)
+output = MultiGraphCNN(100, 1, activation='relu')([output, adj_mat_input])
+output = Dropout(0.2)(output)
 # adding a node invariant layer to make sure output does not depends upon the node order in a graph.
 output = Lambda(lambda x: K.mean(x, axis=1))(output)  
 output = Dense(params['n_classes'])(output)
 output = Activation('softmax')(output)
 
-nb_epochs = 200
+nb_epochs = 400
 
 model = Model(inputs=[feature_mat_input, adj_mat_input], outputs=output)
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['acc'])
