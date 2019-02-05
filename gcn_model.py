@@ -1,8 +1,9 @@
 from keras.models import Input, Model, Sequential
 from keras.layers import Dense, Activation, Dropout, Lambda
-from keras.utils import plot_model
+from keras.utils import plot_model,multi_gpu_model
 import keras.backend as K
 import numpy as np
+import tensorflow as tf
 
 from keras_dgl.layers import MultiGraphCNN
 from datagen.sg_graph_datagen import ShockGraphDataGenerator
@@ -11,19 +12,18 @@ train_dir='/home/naraym1/cifar_100/train_dir'
 test_dir='/home/naraym1/cifar_100/test_dir'
 label_file='/home/naraym1/cifar_100/labels.txt'
 
+numb_gpus=4
+
 # Parameters
 params = {'numb_nodes': 294,
           'numb_attrs': 19,
-          'batch_size': 64,
+          'batch_size': 64*numb_gpus,
           'n_classes': 100,
           'shuffle': True}
 
 #Generators
 training_generator=ShockGraphDataGenerator(train_dir,label_file,**params)
 validation_generator=ShockGraphDataGenerator(test_dir,label_file,**params)
-
-print(len(training_generator))
-print(len(validation_generator))
 
 # build model
 feature_mat_input = Input(shape=(params['numb_nodes'], params['numb_attrs']))
@@ -46,15 +46,18 @@ output = Activation('softmax')(output)
 
 nb_epochs = 400
 
-model = Model(inputs=[feature_mat_input, adj_mat_input], outputs=output)
-model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['acc'])
+with tf.device('/cpu:0'):
+    model = Model(inputs=[feature_mat_input, adj_mat_input], outputs=output)
 
-plot_model(model,to_file='sg_model.png',show_shapes=True)
+#plot_model(model,to_file='sg_model.png',show_shapes=True)
 
-model.fit_generator(generator=training_generator,
-                    epochs=nb_epochs,
-                    verbose=1,
-                    validation_data=validation_generator,
-                    shuffle=True)
+parallel_model = multi_gpu_model(model, gpus=numb_gpus)
+parallel_model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['acc'])
+
+parallel_model.fit_generator(generator=training_generator,
+                             epochs=nb_epochs,
+                             verbose=1,
+                             validation_data=validation_generator,
+                             shuffle=True)
 
 
