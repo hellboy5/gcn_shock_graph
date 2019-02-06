@@ -16,6 +16,7 @@ label_file='/Users/naraym1/work/cifar_100/scripts/labels.txt'
 # Parameters
 params = {'numb_nodes': 294,
           'numb_attrs': 19,
+          'numb_filters':2,
           'batch_size': 100,
           'n_classes': 100,
           'shuffle': False}
