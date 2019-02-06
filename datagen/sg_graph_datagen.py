@@ -8,7 +8,7 @@ import re
 
 class ShockGraphDataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
-    def __init__(self,directory, labels, numb_nodes,numb_attrs,batch_size=32,
+    def __init__(self,directory, labels, numb_nodes,numb_attrs,numb_filters,batch_size=32,
                  n_classes=10, shuffle=True):
         'Initialization'
         
@@ -16,6 +16,7 @@ class ShockGraphDataGenerator(keras.utils.Sequence):
         self.labels = labels
         self.numb_nodes = numb_nodes
         self.numb_attrs = numb_attrs
+        self.numb_filters = numb_filters
         self.batch_size=batch_size
         self.n_classes = n_classes
         self.shuffle = shuffle
@@ -37,15 +38,18 @@ class ShockGraphDataGenerator(keras.utils.Sequence):
         batch_indices = np.remainder(samples,len(self.files))
 
         class_id=np.zeros(self.batch_size,)
-        adj_batch=np.zeros((self.batch_size,self.numb_nodes,self.numb_nodes))
+        adj_batch=np.zeros((self.batch_size,self.numb_nodes*self.numb_filters,self.numb_nodes))
         feature_batch=np.zeros((self.batch_size,self.numb_nodes,self.numb_attrs))
 
         for idx in range(0,len(batch_indices)):
             item=self.files[batch_indices[idx]]
             adj_mat,feature_mat=self.__read_shock_graph(item)
 
-            norm_adj_mat=self.__preprocess_adj_numpy(adj_mat)
-            
+            if self.numb_filters == 1:
+                norm_adj_mat=self.__preprocess_adj_numpy(adj_mat)
+            else:
+                norm_adj_mat=self.__preprocess_adj_numpy_with_identity(adj_mat)
+                
             obj=os.path.basename(item)
             obj=re.sub("_to_msel.*","",obj)
             class_name=obj[:obj.rfind('_')]
@@ -65,6 +69,12 @@ class ShockGraphDataGenerator(keras.utils.Sequence):
     def __preprocess_adj_numpy(self,adj, symmetric=True):
         adj = adj + np.eye(adj.shape[0])
         adj = self.__normalize_adj_numpy(adj, symmetric)
+        return adj
+
+    def __preprocess_adj_numpy_with_identity(self,adj, symmetric=True):
+        adj = adj + np.eye(adj.shape[0])
+        adj = self.__normalize_adj_numpy(adj, symmetric)
+        adj = np.concatenate([np.eye(adj.shape[0]), adj], axis=0)
         return adj
 
     def __normalize_adj_numpy(self,adj, symmetric=True):

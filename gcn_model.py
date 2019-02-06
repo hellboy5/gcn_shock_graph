@@ -17,6 +17,7 @@ numb_gpus=4
 # Parameters
 params = {'numb_nodes': 294,
           'numb_attrs': 19,
+          'numb_filters':2,
           'batch_size': 64*numb_gpus,
           'n_classes': 100,
           'shuffle': True}
@@ -27,17 +28,17 @@ validation_generator=ShockGraphDataGenerator(test_dir,label_file,**params)
 
 # build model
 feature_mat_input = Input(shape=(params['numb_nodes'], params['numb_attrs']))
-adj_mat_input = Input(shape=(params['numb_nodes'],params['numb_nodes']))
+adj_mat_input = Input(shape=(params['numb_nodes']*params['numb_filters'],params['numb_nodes']))
 
-output = MultiGraphCNN(100, 1, activation='relu')([feature_mat_input, adj_mat_input])
+output = MultiGraphCNN(100, params['numb_filters'], activation='relu')([feature_mat_input, adj_mat_input])
 output = Dropout(0.2)(output)
-output = MultiGraphCNN(100, 1, activation='relu')([output, adj_mat_input])
+output = MultiGraphCNN(100, params['numb_filters'], activation='relu')([output, adj_mat_input])
 output = Dropout(0.2)(output)
-output = MultiGraphCNN(100, 1, activation='relu')([output, adj_mat_input])
+output = MultiGraphCNN(100, params['numb_filters'], activation='relu')([output, adj_mat_input])
 output = Dropout(0.2)(output)
-output = MultiGraphCNN(100, 1, activation='relu')([output, adj_mat_input])
+output = MultiGraphCNN(100, params['numb_filters'], activation='relu')([output, adj_mat_input])
 output = Dropout(0.2)(output)
-output = MultiGraphCNN(100, 1, activation='relu')([output, adj_mat_input])
+output = MultiGraphCNN(100, params['numb_filters'], activation='relu')([output, adj_mat_input])
 output = Dropout(0.2)(output)
 # adding a node invariant layer to make sure output does not depends upon the node order in a graph.
 output = Lambda(lambda x: K.mean(x, axis=1))(output)  
