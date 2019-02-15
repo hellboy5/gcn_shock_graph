@@ -22,7 +22,7 @@ A = h5read(sg_file,'/adj_matrix').';
 debug=h5read(sg_file,'/debug');
 
 
-cons=read_cemv_file([path '/' name  '_to_msel_200_1-5_1.cemv']);
+cons=read_cemv_file([path '/' name  '_to_msel.cemv']);
 
 ref_pt=debug(1:2);
 max_offsets=debug(3:4);
@@ -33,9 +33,9 @@ G=digraph(A);
 xdata=((F(:,2)*max_offsets(2))+ref_pt(2))+1;
 ydata=((F(:,1)*max_offsets(1))+ref_pt(1))+1;
 
-
 imshow(I)
 hold on
+title(strrep(name,'_','\_'));
 plot_shock_graph(shock_samples,shock_edges,'g')
 draw_contours(cons,0,0,'c');
 plot(G,'Xdata',xdata,'Ydata',ydata)
