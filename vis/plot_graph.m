@@ -2,9 +2,12 @@ function []=plot_graph(image_name)
 
 [path,name,ext]=fileparts(image_name);
 
+if (isempty(path))
+    path='.';
+end
 
 % Read image
-I=imread([path '/' name '.png']);
+I=imread(image_name);
 
 %Find esf file
 esf_files=dir([path '/' name '*.esf']);
@@ -12,7 +15,8 @@ esf_files=dir([path '/' name '*.esf']);
 %Find h5 file
 h5_files=dir([path '/' name '*.h5']);
 
-
+%Find cemv file
+cemv_files=dir([path '/' name '*.cemv']);
 
 %Read esf file
 [shock_samples,shock_edges]=read_shock_file([ esf_files(1).folder '/' esf_files(1).name]);
@@ -22,7 +26,7 @@ A = h5read(sg_file,'/adj_matrix').';
 debug=h5read(sg_file,'/debug');
 
 
-cons=read_cemv_file([path '/' name  '_to_msel.cemv']);
+cons=read_cemv_file([cemv_files(1).folder '/' cemv_files(1).name]);
 
 ref_pt=debug(1:2);
 max_offsets=debug(3:4);
