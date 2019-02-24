@@ -6,10 +6,12 @@ import h5py
 import os
 import re
 
+from scipy.sparse import coo_matrix,csr_matrix
+
 class ShockGraphDataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
     def __init__(self,directory, labels, numb_nodes,numb_attrs,numb_filters,batch_size=32,
-                 n_classes=10, shuffle=True):
+                 n_classes=10, symmetric=False,sparse=False,shuffle=True):
         'Initialization'
         
         self.directory = directory
@@ -19,10 +21,12 @@ class ShockGraphDataGenerator(keras.utils.Sequence):
         self.numb_filters = numb_filters
         self.batch_size=batch_size
         self.n_classes = n_classes
+        self.symmetric = symmetric
+        self.sparse = sparse
         self.shuffle = shuffle
         self.files=[]
         self.class_mapping={}
-
+        
         self.__gen_file_list()
         self.__parse_label()
         self.on_epoch_end()
@@ -43,8 +47,12 @@ class ShockGraphDataGenerator(keras.utils.Sequence):
 
         for idx in range(0,len(batch_indices)):
             item=self.files[batch_indices[idx]]
-            adj_mat,feature_mat=self.__read_shock_graph(item)
 
+            if self.sparse:
+                adj_mat,feature_mat=self.__read_shock_graph_sparse(item)
+            else:
+                adj_mat,feature_mat=self.__read_shock_graph(item)
+                
             if self.numb_filters == 1:
                 norm_adj_mat=self.__preprocess_adj_numpy(adj_mat)
             else:
@@ -108,6 +116,10 @@ class ShockGraphDataGenerator(keras.utils.Sequence):
         adj_data=fid.get('adj_matrix')
         adj_matrix=np.array(adj_data)
 
+        if self.symmetric:
+            B = np.uint8(adj_matrix.transpose()) & ~np.uint8(adj_matrix)
+            adj_matrix=B+adj_matrix
+
         # determine padding to max node size
         diff=self.numb_nodes-adj_matrix.shape[0]
 
@@ -119,3 +131,27 @@ class ShockGraphDataGenerator(keras.utils.Sequence):
                             'constant',constant_values=(0))
         
         return pad_adj_matrix,pad_F_matrix
+
+    def __read_shock_graph_sparse(self,sg_file):
+        fid=h5py.File(sg_file,'r')
+
+        # read in adj matrix data
+
+        
+        sparse_adj_data=np.array(fid.get('sparse_adj_data'))
+        sparse_adj_indices=np.array(fid.get('sparse_adj_indices'))
+        sparse_adj_shape=np.array(fid.get('sparse_adj_shape'))
+
+        sparse_feature_data=np.array(fid.get('sparse_feature_data'))
+        sparse_feature_indices=np.array(fid.get('sparse_feature_indices'))
+        sparse_feature_shape=np.array(fid.get('sparse_feature_shape'))
+
+        adj_matrix=csr_matrix((sparse_adj_data,(sparse_adj_indices[:,0],sparse_adj_indices[:,1])),sparse_adj_shape).toarray()
+        F_matrix=csr_matrix((sparse_feature_data,(sparse_feature_indices[:,0],sparse_feature_indices[:,1])),sparse_feature_shape).toarray()
+
+        if self.symmetric:
+            B = np.uint8(adj_matrix.transpose()) & ~np.uint8(adj_matrix)
+            adj_matrix=B+adj_matrix
+
+                
+        return adj_matrix,F_matrix

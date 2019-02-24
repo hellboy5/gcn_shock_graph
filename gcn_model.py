@@ -8,18 +8,20 @@ import tensorflow as tf
 from keras_dgl.layers import MultiGraphCNN
 from datagen.sg_graph_datagen import ShockGraphDataGenerator
 
-train_dir='/home/naraym1/cifar_100/train_dir'
-test_dir='/home/naraym1/cifar_100/test_dir'
+train_dir='/home/naraym1/cifar_100/train_ro_dir'
+test_dir='/home/naraym1/cifar_100/test_ro_dir'
 label_file='/home/naraym1/cifar_100/labels.txt'
 
 numb_gpus=4
 
 # Parameters
-params = {'numb_nodes': 294,
+params = {'numb_nodes': 16641,
           'numb_attrs': 19,
-          'numb_filters':2,
-          'batch_size': 64*numb_gpus,
+          'numb_filters':1,
+          'batch_size': 3*numb_gpus,
           'n_classes': 100,
+          'symmetric': False,
+          'sparse': True,
           'shuffle': True}
 
 #Generators
