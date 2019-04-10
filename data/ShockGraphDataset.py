@@ -5,25 +5,34 @@ import h5py
 import os
 import re
 import dgl
-
 import torch
+
+from tqdm import tqdm
 from torch.utils.data.dataset import Dataset
 
 
 class ShockGraphDataset(Dataset):
     'Generates data for Keras'
-    def __init__(self,directory,labels,symmetric=False,shuffle=True):
+    def __init__(self,directory,labels,cache=True,symmetric=False,shuffle=True):
         'Initialization'
         
         self.directory = directory
         self.labels = labels
+        self.cache=cache
         self.symmetric = symmetric
         self.shuffle = shuffle
         self.files=[]
         self.class_mapping={}
+        self.sg_graphs=[]
+        self.sg_labels=[]
         
         self.__gen_file_list()
         self.__parse_label()
+        
+        if self.cache:
+            self.__preprocess_graphs()
+            
+
         
     def __len__(self):
         'Denotes the number of batches per epoch'
@@ -32,15 +41,16 @@ class ShockGraphDataset(Dataset):
     def __getitem__(self, index):
         'Generate one example of data'
 
-        item=self.files[index]
-        graph=self.__read_shock_graph(item)
-
-        obj=os.path.basename(item)
-        obj=re.sub("_to_msel.*","",obj)
-        class_name=obj[:obj.rfind('_')]
-        label=self.class_mapping[class_name]
-
-
+        if self.cache:
+            graph=self.sg_graphs[index]
+            label=self.sg_labels[index]
+        else:        
+            item=self.files[index]
+            graph=self.__read_shock_graph(item)
+            obj=os.path.basename(item)
+            obj=re.sub("_to_msel.*","",obj)
+            class_name=obj[:obj.rfind('_')]
+            label=self.class_mapping[class_name]
 
         return graph,label
 
@@ -75,13 +85,27 @@ class ShockGraphDataset(Dataset):
         for idx in range(0,len(lines)):
             self.class_mapping[lines[idx]]=idx
 
+    def __preprocess_graphs(self):
+
+        for fid in tqdm(self.files):
+            graph=self.__read_shock_graph(fid)
+
+            obj=os.path.basename(fid)
+            obj=re.sub("_to_msel.*","",obj)
+            class_name=obj[:obj.rfind('_')]
+            label=self.class_mapping[class_name]
+
+            self.sg_graphs.append(graph)
+            self.sg_labels.append(label)
+
+        
     def __read_shock_graph(self,sg_file):
         fid=h5py.File(sg_file,'r')
 
         # read in features
         feature_data=fid.get('feature')
-        F_matrix=np.array(feature_data)
-
+        F_matrix=np.array(feature_data).astype(np.float32)
+        
         # read in adj matrix
         adj_data=fid.get('adj_matrix')
         adj_matrix=np.array(adj_data)

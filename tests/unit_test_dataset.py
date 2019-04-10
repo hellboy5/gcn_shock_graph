@@ -18,7 +18,7 @@ def get_pos(graph):
     return positions
 
 # #Generators
-dataset=ShockGraphDataset(train_dir,label_file,symmetric=False,shuffle=True)
+dataset=ShockGraphDataset(train_dir,label_file,cache=True,symmetric=False,shuffle=True)
 
 for i in range(0,100):
     graph, label = dataset[i]
