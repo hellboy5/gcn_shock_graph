@@ -8,12 +8,14 @@ from data.ShockGraphDataset import ShockGraphDataset
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 def collate(samples):
     # The input `samples` is a list of pairs
     #  (graph, label).
     graphs, labels = map(list, zip(*samples))
     batched_graph = dgl.batch(graphs)
-    return batched_graph, torch.tensor(labels)
+    return batched_graph, torch.tensor(labels).to(device)
 
 # Sends a message of node feature h.
 msg = fn.copy_src(src='h', out='m')
@@ -62,14 +64,13 @@ class Classifier(nn.Module):
     def forward(self, g):
         # For undirected graphs, in_degree is the same as
         # out_degree.
-        h=g.ndata['h']
+        h=g.ndata['h'].to(device)
         for conv in self.layers:
             h = conv(g, h)
         g.ndata['h'] = h
         hg = dgl.mean_nodes(g, 'h')
         return self.classify(hg)
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # Create training and test sets.
 train_dir='/home/naraym1/cifar_100/train_dir'
@@ -90,6 +91,7 @@ data_loader = DataLoader(trainset, batch_size=32, shuffle=True,
 model = Classifier(19, 256, num_classes)
 loss_func = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
+model.to(device)
 model.train()
 
 epoch_losses = []
