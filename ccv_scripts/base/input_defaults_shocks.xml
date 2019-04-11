@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<dborl_compute_ishock><Compute_Ishock Compute_Ishock-arc_rms="0.05" Compute_Ishock-b_break_long_lines="on" Compute_Ishock-b_growbbox="off" Compute_Ishock-b_initonly="off" Compute_Ishock-b_noise="off" Compute_Ishock-b_preprocess="on" Compute_Ishock-b_prune="on" Compute_Ishock-b_smooth="off" Compute_Ishock-b_talkative="on" Compute_Ishock-bbox_maxx="0" Compute_Ishock-bbox_maxy="0" Compute_Ishock-bbox_minx="0" Compute_Ishock-bbox_miny="0" Compute_Ishock-exist_ids="off" Compute_Ishock-fit_arcs="off" Compute_Ishock-fit_lines="on" Compute_Ishock-img_bbox="on" Compute_Ishock-noise_radius="0.002" Compute_Ishock-num_cols="1" Compute_Ishock-num_rows="1" Compute_Ishock-rms="0.05" Compute_Ishock-threshold="1">
+</Compute_Ishock>
+<Sample_Shock Sample_Shock-both="on" Sample_Shock-inside="on" Sample_Shock-res="1">
+</Sample_Shock>
+<io input_contour_extention="_se_tcg.cemv" input_image_extention=".JPEG" input_object_dir="" input_object_name="" num_iter="0" output_extension="_se_tcg.esf" output_shock_folder="/vision/projects/kimia/categorization/output" save_to_object_folder="off">
+</io>
+<web_directive categorization_file="categorization.xml" evaluation_file="evaluation.xml" perf_block="perf.xml" print_params_file="params.xml" print_params_only="off" status_block="status.xml">
+</web_directive>
+</dborl_compute_ishock>
