@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 import networkx as nx
 from data.ShockGraphDataset import ShockGraphDataset
 
-train_dir='/home/naraym1/cifar_100/train_dir'
-label_file='/home/naraym1/cifar_100/scripts/labels.txt'
+cifar100_train_dir='/home/naraym1/cifar_100/train_dir'
+stl10_train_dir='/home/naraym1/stl10/se_tcg_train'
 
 def get_pos(graph):
     positions={}
@@ -18,16 +18,24 @@ def get_pos(graph):
     return positions
 
 # #Generators
-dataset=ShockGraphDataset(train_dir,label_file,cache=True,symmetric=False,shuffle=True)
+cifar100=ShockGraphDataset(cifar100_train_dir,'cifar100',cache=False,symmetric=False,shuffle=True)
+stl10=ShockGraphDataset(stl10_train_dir,'stl10',cache=False,symmetric=False,shuffle=True)
 
-for i in range(0,100):
-    graph, label = dataset[i]
+for i in range(0,5):
+    graph, label = cifar100[i]
     positions= get_pos(graph)
     fig, ax = plt.subplots()
     nx.draw(graph.to_networkx(), pos=positions,ax=ax)
     ax.set_title('Class: {:d}'.format(label))
     plt.show()
 
+for i in range(0,5):
+    graph, label = stl10[i]
+    positions= get_pos(graph)
+    fig, ax = plt.subplots()
+    nx.draw(graph.to_networkx(), pos=positions,ax=ax)
+    ax.set_title('Class: {:d}'.format(label))
+    plt.show()
 
 
 
