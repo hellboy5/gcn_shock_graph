@@ -133,3 +133,9 @@ class ShockGraphDataset(Dataset):
                     
         return G
 
+def collate(samples,device_name):
+        # The input `samples` is a list of pairs
+        #  (graph, label).
+        graphs, labels = map(list, zip(*samples))
+        batched_graph = dgl.batch(graphs)
+        return batched_graph, torch.tensor(labels).to(device_name)

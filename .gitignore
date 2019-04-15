@@ -7,3 +7,5 @@
 *.bak
 test.h5
 .DS_Store
+*.pth
+*.json
