@@ -17,13 +17,12 @@ cifar100_map={'couch': 25, 'pine_tree': 59, 'butterfly': 14, 'mountain': 49, 'bu
 
 class ShockGraphDataset(Dataset):
     'Generates data for Keras'
-    def __init__(self,directory,dataset,cache=True,symmetric=False,shuffle=True):
+    def __init__(self,directory,dataset,cache=True,symmetric=False):
         'Initialization'
         
         self.directory = directory
         self.cache=cache
         self.symmetric = symmetric
-        self.shuffle = shuffle
         self.files=[]
         self.class_mapping={}
         self.sg_graphs=[]
@@ -84,8 +83,6 @@ class ShockGraphDataset(Dataset):
         
     def __gen_file_list(self):
         self.files=glob.glob(self.directory+'/*.h5')
-        if self.shuffle:
-            random.shuffle(self.files)
 
     def __preprocess_graphs(self):
 

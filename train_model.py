@@ -16,11 +16,11 @@ def train(train_dir,dataset,cache_io,symm_io,shuffle_io,num_classes,input_dim,de
     hidden_dim=256
     batch_io=64
     
-    trainset=ShockGraphDataset(train_dir,dataset,cache=cache_io,symmetric=symm_io,shuffle=shuffle_io)
+    trainset=ShockGraphDataset(train_dir,dataset,cache=cache_io,symmetric=symm_io)
 
     # Use PyTorch's DataLoader and the collate function
     # defined before.
-    data_loader = DataLoader(trainset, batch_size=batch_io, shuffle=True,
+    data_loader = DataLoader(trainset, batch_size=batch_io, shuffle=shuffle_io,
                              collate_fn=partial(collate,device_name=device))
     
     # Create model
@@ -74,5 +74,5 @@ if __name__ == "__main__":
 
     device_id=sys.argv[2]
     device="cuda:"+str(device_id)
-    train(train_dir,dataset,cache_io,symm_io,shuffle_io,num_classes,input_dim)
+    train(train_dir,dataset,cache_io,symm_io,shuffle_io,num_classes,input_dim,device)
     

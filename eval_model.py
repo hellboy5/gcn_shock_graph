@@ -9,12 +9,12 @@ from torch.utils.data import DataLoader
 from functools import partial
 
 def eval(model,test_dir,dataset,cache_io,symm_io,shuffle_io):
-    
-    testset=ShockGraphDataset(test_dir,dataset,cache=cache_io,symmetric=symm_io,shuffle=shuffle_io)
+
+    testset=ShockGraphDataset(test_dir,dataset,cache=cache_io,symmetric=symm_io)
 
     # Use PyTorch's DataLoader and the collate function
     # defined before.
-    data_loader = DataLoader(testset, batch_size=32, shuffle=False,
+    data_loader = DataLoader(testset, batch_size=32, shuffle=shuffle_io,
                              collate_fn=partial(collate,device_name=device))
 
     predicted=torch.LongTensor()
