@@ -6,6 +6,9 @@ import os
 import re
 import dgl
 import torch
+import scipy.sparse as sp
+
+import math
 
 from tqdm import tqdm
 from torch.utils.data.dataset import Dataset
@@ -97,9 +100,89 @@ class ShockGraphDataset(Dataset):
             self.sg_graphs.append(graph)
             self.sg_labels.append(label)
 
+    def __normalize_features(self,features):
+        """Row-normalize feature matrix and convert to tuple representation"""
+        rowsum = np.array(features.sum(1))
+        r_inv = np.power(rowsum, -1).flatten()
+        r_inv[np.isinf(r_inv)] = 0.
+        r_mat_inv = sp.diags(r_inv)
+        features = r_mat_inv.dot(features)
+        return features
+
+    def __round_nearest(self,x, a):
+        return np.round(np.round(x / a) * a, -int(math.floor(math.log10(a))))
+        
+    def __unwrap_data(self,F_matrix,debug_matrix):
+
+        #make a copy
+        feature_matrix=F_matrix
+
+        # get debug data
+        ref_pt=debug_matrix[:2]
+        max_offsets=debug_matrix[2:4]
+        max_radius=debug_matrix[4]
+
+        # shock pt location
+        feature_matrix[:,:2] *= max_offsets
+
+        # radius of shock point
+        feature_matrix[:,2] *= max_radius
+
+        # theta of node
+        feature_matrix[:,3] *= 2.0*math.pi
+        feature_matrix[:,4] *= 2.0*math.pi
+        feature_matrix[:,5] *= 2.0*math.pi
+
+        # phi of node
+        feature_matrix[:,6] *= math.pi
+        feature_matrix[:,7] *= math.pi
+        feature_matrix[:,8] *= math.pi
+
+        # left boundary point
+        feature_matrix[:,9:11] *= max_offsets
+        feature_matrix[:,11:13] *= max_offsets
+        feature_matrix[:,13:15] *= max_offsets
+
+        # plus theta
+        feature_matrix[:,15] *= math.pi
+        feature_matrix[:,16] *= math.pi
+        feature_matrix[:,17] *= math.pi
+
+        # remove ref pt for contour and shock points
+        feature_matrix[:,0] +=ref_pt[0]
+        feature_matrix[:,1] +=ref_pt[1]
+
+        zero_set=np.array([0.0,0.0])
+        
+        for row_idx in range(0,feature_matrix.shape[0]):
+            feature_matrix[row_idx,9:11]+=ref_pt
+            
+            if np.array_equal(feature_matrix[row_idx,11:13],zero_set)==False:
+                feature_matrix[row_idx,11:13]+=ref_pt
+                
+            if np.array_equal(feature_matrix[row_idx,13:15],zero_set)==False:
+                feature_matrix[row_idx,13:15]+=ref_pt
+
+        feature_matrix[:,0] =self.__round_nearest(feature_matrix[:,0],0.5)
+        feature_matrix[:,1] =self.__round_nearest(feature_matrix[:,1],0.5)
+        
+        feature_matrix[:,9] =self.__round_nearest(feature_matrix[:,9],0.5)
+        feature_matrix[:,10] =self.__round_nearest(feature_matrix[:,10],0.5)
+        
+        feature_matrix[:,11] =self.__round_nearest(feature_matrix[:,11],0.5)
+        feature_matrix[:,12] =self.__round_nearest(feature_matrix[:,12],0.5)
+        
+        feature_matrix[:,13] =self.__round_nearest(feature_matrix[:,13],0.5)
+        feature_matrix[:,14] =self.__round_nearest(feature_matrix[:,14],0.5)
+
+        return feature_matrix
         
     def __read_shock_graph(self,sg_file):
         fid=h5py.File(sg_file,'r')
+
+        # read in debug info
+        debug_data=fid.get('debug')
+        debug_matrix=np.array(debug_data)
 
         # read in features
         feature_data=fid.get('feature')
@@ -108,7 +191,10 @@ class ShockGraphDataset(Dataset):
         # read in adj matrix
         adj_data=fid.get('adj_matrix')
         adj_matrix=np.array(adj_data)
-    
+
+        #F_matrix_unwrapped=self.__unwrap_data(F_matrix,debug_matrix)
+        #norm_F_matrix=self.__normalize_features(F_matrix_unwrapped)
+
         # convert to dgl
         G=dgl.DGLGraph()
         G.add_nodes(adj_matrix.shape[0])
