@@ -30,7 +30,10 @@ class ShockGraphDataset(Dataset):
         self.class_mapping={}
         self.sg_graphs=[]
         self.sg_labels=[]
-
+        self.width=1
+        self.center=np.zeros(2)
+        self.sg_features=[]
+        
         if dataset=='cifar100':
             print('Using cifar 100 dataset')
             self.class_mapping=cifar100_map
@@ -54,14 +57,16 @@ class ShockGraphDataset(Dataset):
         if self.cache:
             graph=self.sg_graphs[index]
             label=self.sg_labels[index]
+            features=self.sg_features[index]
         else:        
             item=self.files[index]
-            graph=self.__read_shock_graph(item)
+            graph,features=self.__read_shock_graph(item)
             obj=os.path.basename(item)
             obj=re.split(r'[0-9].*',obj)[0]
             class_name=obj[:obj.rfind('_')]
             label=self.class_mapping[class_name]
 
+        self.__apply_da(graph,features)
         return graph,label
 
     def __preprocess_adj_numpy(self,adj, symmetric=True):
@@ -90,7 +95,7 @@ class ShockGraphDataset(Dataset):
     def __preprocess_graphs(self):
 
         for fid in tqdm(self.files):
-            graph=self.__read_shock_graph(fid)
+            graph,features=self.__read_shock_graph(fid)
 
             obj=os.path.basename(fid)
             obj=re.split(r'[0-9].*',obj)[0]
@@ -99,7 +104,8 @@ class ShockGraphDataset(Dataset):
 
             self.sg_graphs.append(graph)
             self.sg_labels.append(label)
-
+            self.sg_features.append(features)
+            
     def __normalize_features(self,features):
         """Row-normalize feature matrix and convert to tuple representation"""
         rowsum = np.array(features.sum(1))
@@ -111,6 +117,45 @@ class ShockGraphDataset(Dataset):
 
     def __round_nearest(self,x, a):
         return np.round(np.round(x / a) * a, -int(math.floor(math.log10(a))))
+
+    def __translate_points(self,pt,v,length):
+        i=0
+        trans_points=np.zeros((pt.shape[0],6))
+        for g in range(0,v.shape[1]):
+            x=pt[:,0]+length*np.sin(v[:,g])
+            y=pt[:,1]+length*np.cos(v[:,g])
+            trans_points[:,i]=x
+            i=i+1
+            trans_points[:,i]=y
+            i=i+1
+            
+        return trans_points
+    
+    def __apply_da(self,graph,features):
+
+        F_matrix=np.copy(features[0])
+        mask=features[1]
+        
+        flip=random.randint(0,1)
+        if flip:
+            F_matrix[:,1]=(self.width-F_matrix[:,1])-self.width/2
+            F_matrix[:,3:6]=math.pi-F_matrix[:,3:6]
+            F_matrix[:,15:18]=math.pi-F_matrix[:,15:18]
+            
+        random_scale=np.random.rand(1)*(2-.5)+.5
+        random_scale=random_scale if random_scale != 0 else 1
+        random_trans=np.random.rand(2)*5
+
+        F_matrix[:,:2]*=random_scale
+        F_matrix[:,2]*=random_scale
+        
+        v=F_matrix[:,3:6]+F_matrix[:,6:9]
+        new_trans_points=self.__translate_points(F_matrix[:,:2],v,F_matrix[:,2])
+        new_trans_points=new_trans_points*mask
+
+        F_matrix[:,9:15]=new_trans_points
+
+        graph.ndata['h']=torch.from_numpy(F_matrix)
         
     def __unwrap_data(self,F_matrix,debug_matrix):
 
@@ -153,29 +198,22 @@ class ShockGraphDataset(Dataset):
         feature_matrix[:,1] +=ref_pt[1]
 
         zero_set=np.array([0.0,0.0])
-        
+
+        mask=np.ones((feature_matrix.shape[0],6))
         for row_idx in range(0,feature_matrix.shape[0]):
             feature_matrix[row_idx,9:11]+=ref_pt
             
             if np.array_equal(feature_matrix[row_idx,11:13],zero_set)==False:
                 feature_matrix[row_idx,11:13]+=ref_pt
+            else:
+                mask[row_idx,2:4]=0
                 
             if np.array_equal(feature_matrix[row_idx,13:15],zero_set)==False:
                 feature_matrix[row_idx,13:15]+=ref_pt
+            else:
+                mask[row_idx,4:6]=0
 
-        feature_matrix[:,0] =self.__round_nearest(feature_matrix[:,0],0.5)
-        feature_matrix[:,1] =self.__round_nearest(feature_matrix[:,1],0.5)
-        
-        feature_matrix[:,9] =self.__round_nearest(feature_matrix[:,9],0.5)
-        feature_matrix[:,10] =self.__round_nearest(feature_matrix[:,10],0.5)
-        
-        feature_matrix[:,11] =self.__round_nearest(feature_matrix[:,11],0.5)
-        feature_matrix[:,12] =self.__round_nearest(feature_matrix[:,12],0.5)
-        
-        feature_matrix[:,13] =self.__round_nearest(feature_matrix[:,13],0.5)
-        feature_matrix[:,14] =self.__round_nearest(feature_matrix[:,14],0.5)
-
-        return feature_matrix
+        return feature_matrix,mask
         
     def __read_shock_graph(self,sg_file):
         fid=h5py.File(sg_file,'r')
@@ -192,9 +230,15 @@ class ShockGraphDataset(Dataset):
         adj_data=fid.get('adj_matrix')
         adj_matrix=np.array(adj_data)
 
-        #F_matrix_unwrapped=self.__unwrap_data(F_matrix,debug_matrix)
-        #norm_F_matrix=self.__normalize_features(F_matrix_unwrapped)
+        # remove normalization put in
+        F_matrix_unwrapped,mask=self.__unwrap_data(F_matrix,debug_matrix)
 
+        # center of bounding box
+        # will be a constant across
+        self.width=(F_matrix_unwrapped[1,1]-F_matrix_unwrapped[0,1])
+        self.center=np.array([F_matrix_unwrapped[1,1]-self.width/2.0,
+                              F_matrix_unwrapped[1,1]-self.width/2.0])
+        
         # convert to dgl
         G=dgl.DGLGraph()
         G.add_nodes(adj_matrix.shape[0])
@@ -209,16 +253,12 @@ class ShockGraphDataset(Dataset):
                 G.add_edges(source,target)
                 if self.symmetric:
                     G.add_edges(target,source)
-                    
-            F=torch.from_numpy(F_matrix[row,:])
-            feature=F.view(-1,F.shape[0])
-            G.nodes[row].data['h']=feature
-                    
-        return G
+                                
+        return G,(F_matrix_unwrapped,mask)
 
 def collate(samples,device_name):
-        # The input `samples` is a list of pairs
-        #  (graph, label).
-        graphs, labels = map(list, zip(*samples))
-        batched_graph = dgl.batch(graphs)
-        return batched_graph, torch.tensor(labels).to(device_name)
+    # The input `samples` is a list of pairs
+    #  (graph, label).
+    graphs, labels = map(list, zip(*samples))
+    batched_graph = dgl.batch(graphs)
+    return batched_graph, torch.tensor(labels).to(device_name)
