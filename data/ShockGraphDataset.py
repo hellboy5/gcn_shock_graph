@@ -73,7 +73,9 @@ class ShockGraphDataset(Dataset):
         if self.data_augment:
             self.__apply_da(graph,features)
         else:
-            graph.ndata['h']=torch.from_numpy(features)
+            F_matrix=np.copy(features[0])
+            self.__recenter(F_matrix)
+            graph.ndata['h']=torch.from_numpy(F_matrix)
             
         return graph,label
 
