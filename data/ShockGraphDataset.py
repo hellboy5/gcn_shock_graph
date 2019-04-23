@@ -33,6 +33,7 @@ class ShockGraphDataset(Dataset):
         self.width=1
         self.center=np.zeros(2)
         self.sg_features=[]
+        self.trans=()
         
         if dataset=='cifar100':
             print('Using cifar 100 dataset')
@@ -155,6 +156,8 @@ class ShockGraphDataset(Dataset):
 
         F_matrix[:,9:15]=new_trans_points
 
+        self.trans=(flip,random_scale)
+        
         graph.ndata['h']=torch.from_numpy(F_matrix)
         
     def __unwrap_data(self,F_matrix,debug_matrix):
