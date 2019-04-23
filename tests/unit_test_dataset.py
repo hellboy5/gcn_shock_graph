@@ -20,7 +20,7 @@ def get_pos(graph):
     return positions
 
 # #Generators
-stl10=ShockGraphDataset(train_dir,'stl10',cache=False,symmetric=True)
+stl10=ShockGraphDataset(train_dir,'stl10',cache=False,symmetric=True,data_augment=True)
 
 
 fname='/Users/naraym1/work/stl10/se_tcg_train/bird_310-n111-shock_graph.h5'
@@ -59,6 +59,8 @@ for row_idx in range(0,feature_matrix.shape[0]):
         plt.plot(pt[1],pt[0],'co')
 
 #ax.set_title('Class: {:d}'.format(label))
+
+plt.plot(48.0,48.0,'g*')
 plt.show()
 
 

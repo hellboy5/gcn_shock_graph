@@ -20,7 +20,7 @@ cifar100_map={'couch': 25, 'pine_tree': 59, 'butterfly': 14, 'mountain': 49, 'bu
 
 class ShockGraphDataset(Dataset):
     'Generates data for Keras'
-    def __init__(self,directory,dataset,cache=True,symmetric=False):
+    def __init__(self,directory,dataset,cache=True,symmetric=False,data_augment=False):
         'Initialization'
         
         self.directory = directory
@@ -34,6 +34,9 @@ class ShockGraphDataset(Dataset):
         self.center=np.zeros(2)
         self.sg_features=[]
         self.trans=()
+        self.factor=1
+        self.max_radius=1
+        self.data_augment=data_augment
         
         if dataset=='cifar100':
             print('Using cifar 100 dataset')
@@ -67,7 +70,11 @@ class ShockGraphDataset(Dataset):
             class_name=obj[:obj.rfind('_')]
             label=self.class_mapping[class_name]
 
-        self.__apply_da(graph,features)
+        if self.data_augment:
+            self.__apply_da(graph,features)
+        else:
+            graph.ndata['h']=torch.from_numpy(features)
+            
         return graph,label
 
     def __preprocess_adj_numpy(self,adj, symmetric=True):
@@ -145,21 +152,62 @@ class ShockGraphDataset(Dataset):
             
         random_scale=np.random.rand(1)*(2-.5)+.5
         random_scale=random_scale if random_scale != 0 else 1
-        random_trans=np.random.rand(2)*5
-
+        random_trans=np.random.rand(2)*10-5
+        
+        F_matrix[:,:2]+=random_trans
         F_matrix[:,:2]*=random_scale
         F_matrix[:,2]*=random_scale
-        
+
         v=F_matrix[:,3:6]+F_matrix[:,6:9]
         new_trans_points=self.__translate_points(F_matrix[:,:2],v,F_matrix[:,2])
         new_trans_points=new_trans_points*mask
 
         F_matrix[:,9:15]=new_trans_points
 
-        self.trans=(flip,random_scale)
-        
+        self.trans=(flip,random_scale,random_trans)
+        self.__recenter(F_matrix)
+
         graph.ndata['h']=torch.from_numpy(F_matrix)
-        
+
+    def __recenter(self,F_matrix):
+
+        # radius of shock point
+        F_matrix[:,2] /= self.max_radius*2.0
+
+        # theta of node
+        F_matrix[:,3] /= 2.0*math.pi
+        F_matrix[:,4] /= 2.0*math.pi
+        F_matrix[:,5] /= 2.0*math.pi
+
+        # phi of node
+        F_matrix[:,6] /= math.pi
+        F_matrix[:,7] /= math.pi
+        F_matrix[:,8] /= math.pi
+
+        # plus theta
+        F_matrix[:,15] /= 2.0*math.pi
+        F_matrix[:,16] /= 2.0*math.pi
+        F_matrix[:,17] /= 2.0*math.pi
+
+        # remove ref pt for contour and shock points
+        F_matrix[:,:2] -=self.center
+
+        zero_set=np.array([0.0,0.0])
+
+        for row_idx in range(0,F_matrix.shape[0]):
+            F_matrix[row_idx,9:11]-=self.center
+            
+            if np.array_equal(F_matrix[row_idx,11:13],zero_set)==False:
+                F_matrix[row_idx,11:13]-=self.center
+                
+            if np.array_equal(F_matrix[row_idx,13:15],zero_set)==False:
+                F_matrix[row_idx,13:15]-=self.center
+
+        F_matrix[:,:2] /= self.factor
+        F_matrix[:,9:11] /= self.factor
+        F_matrix[:,11:13] /= self.factor
+        F_matrix[:,13:15] /= self.factor
+                            
     def __unwrap_data(self,F_matrix,debug_matrix):
 
         #make a copy
@@ -170,6 +218,8 @@ class ShockGraphDataset(Dataset):
         max_offsets=debug_matrix[2:4]
         max_radius=debug_matrix[4]
 
+        self.max_radius=max_radius
+        
         # shock pt location
         feature_matrix[:,:2] *= max_offsets
 
@@ -241,7 +291,8 @@ class ShockGraphDataset(Dataset):
         self.width=(F_matrix_unwrapped[1,1]-F_matrix_unwrapped[0,1])
         self.center=np.array([F_matrix_unwrapped[1,1]-self.width/2.0,
                               F_matrix_unwrapped[1,1]-self.width/2.0])
-        
+        self.factor=self.width*1.5
+
         # convert to dgl
         G=dgl.DGLGraph()
         G.add_nodes(adj_matrix.shape[0])
