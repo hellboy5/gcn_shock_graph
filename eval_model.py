@@ -10,7 +10,7 @@ from functools import partial
 
 def eval(model,test_dir,dataset,cache_io,symm_io,shuffle_io):
 
-    testset=ShockGraphDataset(test_dir,dataset,cache=cache_io,symmetric=symm_io)
+    testset=ShockGraphDataset(test_dir,dataset,cache=cache_io,symmetric=symm_io,data_augment=False)
 
     # Use PyTorch's DataLoader and the collate function
     # defined before.
@@ -54,7 +54,7 @@ if __name__ == "__main__":
     device="cuda:"+str(device_id)
     
     state_path=sys.argv[3]
-    model = Classifier(input_dim, 256, num_classes,device)
+    model = Classifier(input_dim, 512, num_classes,device)
     model.load_state_dict(torch.load(state_path)['model_state_dict'])
     model.to(device)
     model.eval()

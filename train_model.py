@@ -13,10 +13,10 @@ from functools import partial
 
 def train(train_dir,dataset,cache_io,symm_io,shuffle_io,num_classes,input_dim,device):
     epochs=400
-    hidden_dim=256
+    hidden_dim=512
     batch_io=64
     
-    trainset=ShockGraphDataset(train_dir,dataset,cache=cache_io,symmetric=symm_io)
+    trainset=ShockGraphDataset(train_dir,dataset,cache=cache_io,symmetric=symm_io,data_augment=True)
 
     # Use PyTorch's DataLoader and the collate function
     # defined before.
@@ -26,7 +26,7 @@ def train(train_dir,dataset,cache_io,symm_io,shuffle_io,num_classes,input_dim,de
     # Create model
     model = Classifier(input_dim, hidden_dim, num_classes,device)
     loss_func = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)#,weight_decay=0.00005/2.0)
     model.to(device)
     model.train()
 
