@@ -44,12 +44,6 @@ class Classifier(nn.Module):
         self.layers = nn.ModuleList([
             GCN(in_dim, hidden_dim, F.relu),
             GCN(hidden_dim, hidden_dim, F.relu),
-            GCN(hidden_dim, hidden_dim, F.relu),
-            GCN(hidden_dim, hidden_dim, F.relu),
-            GCN(hidden_dim, hidden_dim, F.relu),
-            GCN(hidden_dim, hidden_dim, F.relu),
-            GCN(hidden_dim, hidden_dim, F.relu),
-            GCN(hidden_dim, hidden_dim, F.relu),
             GCN(hidden_dim, hidden_dim, F.relu)])
         self.classify = nn.Linear(hidden_dim, n_classes)
 
