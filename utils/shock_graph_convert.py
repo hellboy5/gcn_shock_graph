@@ -16,12 +16,18 @@ from scipy.spatial.distance import cdist
 
 node_order=dict()
 node_mapping=dict()
-samp_to_node_mapping=dict()
+samp_to_node_mapping=defaultdict(list)
 edge_mapping=defaultdict(list)
 Sample=namedtuple('Sample','pt type radius theta phi plus_pt \
 minus_pt plus_theta minus_theta')
 highest_degree=0
 
+def getLengthSampNode():
+     length=0
+     for value in samp_to_node_mapping.itervalues():
+          length=length+len(value)
+     return length
+     
 def speedToPhi(speed):
      if speed != 0 and speed < 99990:
           phi = acos(-1.0/speed);
@@ -65,12 +71,12 @@ def read_node_header(node_line,lines,numb_nodes):
           highest_degree=max(highest_degree,len(adj_samples)-1)
           for key in adj_samples:
                if len(key):
-                    samp_to_node_mapping[int(key)]=int(node_id)
+                    samp_to_node_mapping[int(key)].append(int(node_id))
 
 # process node sample data
 def read_node_samples(sample_line,lines,sample_data,node_info):
 
-     numb_mappings=len(samp_to_node_mapping)
+     numb_mappings=getLengthSampNode()
      start=sample_line
      end=sample_line+numb_mappings*sample_data
      for ln in range(start,end,sample_data):
@@ -108,21 +114,23 @@ def read_node_samples(sample_line,lines,sample_data,node_info):
           right_bnd_tangent = fixAngleMPiPi_new(theta-phi+pi/2.0);
 
           #get affected node data
-          node_data=node_mapping[samp_to_node_mapping[id]]
+          ids=samp_to_node_mapping[id]
+          for val in ids:
+               node_data=node_mapping[val]
 
-          node_data.pt.append(pt)
-          node_data.radius.append(radius)
-          node_data.theta.append(theta)
-          node_data.phi.append(phi)
-          node_data.plus_pt.append(left_bnd_pt)
-          node_data.minus_pt.append(right_bnd_pt)
-          node_data.plus_theta.append(left_bnd_tangent)
-          node_data.minus_theta.append(right_bnd_tangent)     
+               node_data.pt.append(pt)
+               node_data.radius.append(radius)
+               node_data.theta.append(theta)
+               node_data.phi.append(phi)
+               node_data.plus_pt.append(left_bnd_pt)
+               node_data.minus_pt.append(right_bnd_pt)
+               node_data.plus_theta.append(left_bnd_tangent)
+               node_data.minus_theta.append(right_bnd_tangent)     
 
 
 #process edge information 
 def read_edge_header(sample_line,lines,sample_data,edge_offset,numb_edges):
-     numb_mappings=len(samp_to_node_mapping)
+     numb_mappings=getLengthSampNode()
      edge_start=sample_line+numb_mappings*sample_data+edge_offset
      for idx in range(edge_start,edge_start+numb_edges):
           text=lines[idx]
