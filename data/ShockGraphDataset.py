@@ -12,7 +12,8 @@ import math
 
 from tqdm import tqdm
 from torch.utils.data.dataset import Dataset
-
+from scipy.misc import imread
+from scipy import ndimage
 
 stl10_map={'airplane':0, 'bird':1,'car':2,'cat':3,'deer':4,'dog':5,'horse':6,'monkey':7,'ship':8,'truck':9}
 
@@ -140,7 +141,39 @@ class ShockGraphDataset(Dataset):
             i=i+1
             
         return trans_points
-    
+
+    def __get_pixel_values(self,F_matrix,color_space):
+
+        pixel_values=np.zeros((F_matrix.shape[0],12))
+
+        zero_set=np.array([0.0,0.0])
+        zcoord=np.array([0,1,2])
+        for f in range(F_matrix.shape[0]):
+            sg_xcoord=np.repeat(F_matrix[f,0],3)
+            sg_ycoord=np.repeat(F_matrix[f,1],3)
+            sg_cs=ndimage.map_coordinates(color_space,[sg_xcoord,sg_ycoord,zcoord])
+            pixel_values[f,:3]=sg_cs
+            
+            
+            bp1_xcoord=np.repeat(F_matrix[f,9],3)
+            bp1_ycoord=np.repeat(F_matrix[f,10],3)
+            bp1_cs=ndimage.map_coordinates(color_space,[bp1_xcoord,bp1_ycoord,zcoord])
+            pixel_values[f,3:6]=bp1_cs
+            
+            if np.array_equal(F_matrix[f,11:13],zero_set)==False:
+                bp2_xcoord=np.repeat(F_matrix[f,11],3)
+                bp2_ycoord=np.repeat(F_matrix[f,12],3)
+                bp2_cs=ndimage.map_coordinates(color_space,[bp2_xcoord,bp2_ycoord,zcoord])
+                pixel_values[f,6:9]=bp2_cs
+                
+            if np.array_equal(F_matrix[f,13:15],zero_set)==False:
+                bp3_xcoord=np.repeat(F_matrix[f,13],3)
+                bp3_ycoord=np.repeat(F_matrix[f,14],3)
+                bp3_cs=ndimage.map_coordinates(color_space,[bp3_xcoord,bp3_ycoord,zcoord])
+                pixel_values[f,9:12]=bp3_cs
+
+        return pixel_values
+            
     def __apply_da(self,graph,features):
 
         F_matrix=np.copy(features[0])
@@ -287,13 +320,18 @@ class ShockGraphDataset(Dataset):
 
         # remove normalization put in
         F_matrix_unwrapped,mask=self.__unwrap_data(F_matrix,debug_matrix)
-
+        
         # center of bounding box
         # will be a constant across
         self.width=(F_matrix_unwrapped[1,1]-F_matrix_unwrapped[0,1])
         self.center=np.array([F_matrix_unwrapped[1,1]-self.width/2.0,
                               F_matrix_unwrapped[1,1]-self.width/2.0])
         self.factor=self.width*1.5
+
+        # get image
+        image_name=sg_file.split('-')[0]+'.png'
+        img=imread(image_name)
+        F_color=self.__get_pixel_values(F_matrix_unwrapped,img)
 
         # convert to dgl
         G=dgl.DGLGraph()
