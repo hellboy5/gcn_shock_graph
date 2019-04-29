@@ -144,7 +144,7 @@ class ShockGraphDataset(Dataset):
 
     def __get_pixel_values(self,F_matrix,color_space):
 
-        pixel_values=np.zeros((F_matrix.shape[0],12))
+        pixel_values=np.zeros((F_matrix.shape[0],12),dtype=np.float32)
 
         zero_set=np.array([0.0,0.0])
         zcoord=np.array([0,1,2])
@@ -172,7 +172,7 @@ class ShockGraphDataset(Dataset):
                 bp3_cs=ndimage.map_coordinates(color_space,[bp3_xcoord,bp3_ycoord,zcoord])
                 pixel_values[f,9:12]=bp3_cs
 
-        return pixel_values
+        return pixel_values/255.0
             
     def __apply_da(self,graph,features):
 
@@ -333,6 +333,9 @@ class ShockGraphDataset(Dataset):
         img=imread(image_name)
         F_color=self.__get_pixel_values(F_matrix_unwrapped,img)
 
+        # add color and shape features together
+        F_combined=np.concatenate((F_matrix_unwrapped,F_color),axis=1)
+
         # convert to dgl
         G=dgl.DGLGraph()
         G.add_nodes(adj_matrix.shape[0])
@@ -348,7 +351,7 @@ class ShockGraphDataset(Dataset):
                 if self.symmetric:
                     G.add_edges(target,source)
                                 
-        return G,(F_matrix_unwrapped,mask)
+        return G,(F_combined,mask)
 
 def collate(samples,device_name):
     # The input `samples` is a list of pairs
