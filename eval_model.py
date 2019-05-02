@@ -15,7 +15,7 @@ def eval(config_file,state_path,device):
     dataset=config_file['dataset']
     cache_io=config_file['cache_io']
     symm_io=config_file['symm_io']
-    shuffle_io=config_file['shuffle_io']
+    shuffle_io=False
     num_classes=config_file['num_classes']
     input_dim=config_file['features_dim']
     hidden_dim=config_file['hidden_dim']
@@ -33,12 +33,12 @@ def eval(config_file,state_path,device):
 
     # Use PyTorch's DataLoader and the collate function
     # defined before.
-    data_loader = DataLoader(testset, batch_size=batch_io, shuffle=shuffle_io,
+    data_loader = DataLoader(testset, batch_size=batch_io, shuffle=False,
                              collate_fn=partial(collate,device_name=device))
 
     predicted=torch.LongTensor()
     groundtruth=torch.LongTensor()
-    
+    confusion_matrix=np.zeros((num_classes,num_classes))
     for iter, (bg, label) in enumerate(data_loader):
         output = model(bg)
         estimate = torch.max(output, 1)[1].view(-1, 1)
@@ -46,9 +46,25 @@ def eval(config_file,state_path,device):
         predicted=torch.cat((predicted,estimate.to("cpu")),0)
         groundtruth=torch.cat((groundtruth,label.to("cpu")),0)
 
+
+        
     groundtruth=groundtruth.view(-1)
     predicted=predicted.view(-1)
 
+    for ind in range(0,groundtruth.shape[0]):
+        if groundtruth[ind]==predicted[ind]:
+            confusion_matrix[groundtruth[ind],groundtruth[ind]]+=1
+        else:
+            confusion_matrix[groundtruth[ind],predicted[ind]]+=1
+
+    confusion_matrix=(confusion_matrix/np.sum(confusion_matrix,1)[:,None])*100
+
+    print(confusion_matrix)
+
+    mAP=np.diagonal(confusion_matrix)
+
+    print(mAP)
+    print("mAP: ",np.mean(mAP))
     print(groundtruth)
     print(predicted)
     print('Accuracy of argmax predictedions on the test set: {:4f}%'.format(
