@@ -19,6 +19,40 @@ stl10_map={'airplane':0, 'bird':1,'car':2,'cat':3,'deer':4,'dog':5,'horse':6,'mo
 
 cifar100_map={'couch': 25, 'pine_tree': 59, 'butterfly': 14, 'mountain': 49, 'bus': 13, 'sunflower': 82, 'beetle': 7, 'lamp': 40, 'can': 16, 'beaver': 4, 'bee': 6, 'elephant': 31, 'kangaroo': 38, 'oak_tree': 52, 'orchid': 54, 'trout': 91, 'pickup_truck': 58, 'chimpanzee': 21, 'worm': 99, 'snail': 77, 'television': 87, 'hamster': 36, 'squirrel': 80, 'lion': 43, 'otter': 55, 'shrew': 74, 'pear': 57, 'turtle': 93, 'seal': 72, 'plate': 61, 'fox': 34, 'train': 90, 'porcupine': 63, 'tulip': 92, 'keyboard': 39, 'orange': 53, 'possum': 64, 'cattle': 19, 'skyscraper': 76, 'bear': 3, 'cup': 28, 'cockroach': 24, 'caterpillar': 18, 'mouse': 50, 'forest': 33, 'rabbit': 65, 'aquarium_fish': 1, 'chair': 20, 'castle': 17, 'palm_tree': 56, 'telephone': 86, 'mushroom': 51, 'streetcar': 81, 'willow_tree': 96, 'man': 46, 'wardrobe': 94, 'bowl': 10, 'sweet_pepper': 83, 'maple_tree': 47, 'snake': 78, 'whale': 95, 'poppy': 62, 'tank': 85, 'bed': 5, 'rose': 70, 'crocodile': 27, 'raccoon': 66, 'tractor': 89, 'bicycle': 8, 'bridge': 12, 'dinosaur': 29, 'crab': 26, 'clock': 22, 'bottle': 9, 'lawn_mower': 41, 'road': 68, 'spider': 79, 'skunk': 75, 'tiger': 88, 'sea': 71, 'lizard': 44, 'cloud': 23, 'ray': 67, 'house': 37, 'lobster': 45, 'boy': 11, 'plain': 60, 'table': 84, 'dolphin': 30, 'camel': 15, 'rocket': 69, 'baby': 2, 'girl': 35, 'shark': 73, 'motorcycle': 48, 'flatfish': 32, 'leopard': 42, 'wolf': 97, 'apple': 0, 'woman': 98}
 
+imageclef_map={'aeroplane':0, 'bike':1, 'bird':2, 'boat':3, 'bottle':4, 'bus':5, 'car':6, 'dog':7, 'horse':8, 'monitor':9, 'motorbike':10, 'people':11}
+
+office31_map={'back_pack':0,
+              'bike':1,
+              'bike_helmet':2,
+              'bookcase':3,
+              'bottle':4,
+              'calculator':5,
+              'desk_chair':6,
+              'desk_lamp':7,
+              'desktop_computer':8,
+              'file_cabinet':9,
+              'headphones':10,
+              'keyboard':11,
+              'laptop_computer':12,
+              'letter_tray':13,
+              'mobile_phone':14,
+              'monitor':15,
+              'mouse':16,
+              'mug':17,
+              'paper_notebook':18,
+              'pen':19,
+              'phone':20,
+              'printer':21,
+              'projector':22,
+              'punchers':23,
+              'ring_binder':24,
+              'ruler':25,
+              'scissors':26,
+              'speaker':27,
+              'stapler':28,
+              'tape_dispenser':29,
+              'trash_can':30}
+              
 class ShockGraphDataset(Dataset):
     'Generates data for Keras'
     def __init__(self,directory,dataset,cache=True,symmetric=False,data_augment=False):
@@ -42,9 +76,15 @@ class ShockGraphDataset(Dataset):
         if dataset=='cifar100':
             print('Using cifar 100 dataset')
             self.class_mapping=cifar100_map
-        else:
+        elif dataset=='stl10':
             print('Using stl 10 dataset')
             self.class_mapping=stl10_map
+        elif dataset=='imageclef':
+            print('Using image-clef dataset')
+            self.class_mapping=imageclef_map
+        else:
+            print('Using office 31 dataset')
+            self.class_mapping=office31_map
             
         self.__gen_file_list()
         
@@ -242,7 +282,8 @@ class ShockGraphDataset(Dataset):
         F_matrix[:,9:11] /= self.factor
         F_matrix[:,11:13] /= self.factor
         F_matrix[:,13:15] /= self.factor
-                            
+
+        
     def __unwrap_data(self,F_matrix,debug_matrix):
 
         #make a copy
@@ -346,6 +387,7 @@ class ShockGraphDataset(Dataset):
             target=np.nonzero(neighbors)[0]
             source=np.zeros(target.shape)+row
 
+            
             if target.size:
                 G.add_edges(source,target)
                 if self.symmetric:
