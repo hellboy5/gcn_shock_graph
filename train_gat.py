@@ -44,8 +44,10 @@ def main(args):
     epochs=args.epochs
 
     
-    prefix='gat_sg_model_'+dataset+'_'
-     
+    prefix='gat_sg_model_'+dataset+'_'+str(args.num_layers)+'_'+str(args.num_hidden)+'_'+str(args.num_heads)+'_'+str(args.num_out_heads)
+
+    print('saving to prefix: ', prefix)
+    
     # create train dataset
     trainset=ShockGraphDataset(train_dir,dataset,cache=cache_io,symmetric=symm_io,data_augment=apply_da)
 
@@ -109,7 +111,7 @@ if __name__ == '__main__':
                         help="configuration file for the dataset")
     parser.add_argument("--gpu", type=int, default=-1,
                         help="which GPU to use. Set -1 to use CPU.")
-    parser.add_argument("--epochs", type=int, default=400,
+    parser.add_argument("--epochs", type=int, default=500,
                         help="number of training epochs")
     parser.add_argument("--num-heads", type=int, default=4,
                         help="number of hidden attention heads")
@@ -125,16 +127,14 @@ if __name__ == '__main__':
                         help="input feature dropout")
     parser.add_argument("--attn-drop", type=float, default=0,
                         help="attention dropout")
-    parser.add_argument("--lr", type=float, default=0.005,
+    parser.add_argument("--lr", type=float, default=0.001,
                         help="learning rate")
     parser.add_argument('--weight-decay', type=float, default=0,
                         help="weight decay")
     parser.add_argument('--alpha', type=float, default=0.2,
                         help="the negative slop of leaky relu")
-    parser.add_argument('--batch-size', type=int, default=2,
+    parser.add_argument('--batch-size', type=int, default=64,
                         help="batch size used for training, validation and test")
-    parser.add_argument('--patience', type=int, default=10,
-                        help="used for early stop")
     args = parser.parse_args()
     print(args)
 

@@ -133,11 +133,9 @@ if __name__ == '__main__':
                         help="input feature dropout")
     parser.add_argument("--attn-drop", type=float, default=0,
                         help="attention dropout")
-    parser.add_argument('--weight-decay', type=float, default=0,
-                        help="weight decay")
     parser.add_argument('--alpha', type=float, default=0.2,
                         help="the negative slop of leaky relu")
-    parser.add_argument('--batch-size', type=int, default=2,
+    parser.add_argument('--batch-size', type=int, default=64,
                         help="batch size used for training, validation and test")
     args = parser.parse_args()
     print(args)
