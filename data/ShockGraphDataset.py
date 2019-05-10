@@ -14,6 +14,7 @@ from tqdm import tqdm
 from torch.utils.data.dataset import Dataset
 from scipy.misc import imread
 from scipy import ndimage
+from operator import itemgetter
 
 stl10_map={'airplane':0, 'bird':1,'car':2,'cat':3,'deer':4,'dog':5,'horse':6,'monkey':7,'ship':8,'truck':9}
 
@@ -55,16 +56,18 @@ office31_map={'back_pack':0,
               
 class ShockGraphDataset(Dataset):
     'Generates data for Keras'
-    def __init__(self,directory,dataset,cache=True,symmetric=False,data_augment=False):
+    def __init__(self,directory,dataset,app=False,cache=True,symmetric=False,data_augment=False):
         'Initialization'
         
         self.directory = directory
+        self.app=app
         self.cache=cache
         self.symmetric = symmetric
         self.files=[]
         self.class_mapping={}
         self.sg_graphs=[]
         self.sg_labels=[]
+        self.adj_matrices=[]
         self.width=1
         self.center=np.zeros(2)
         self.sg_features=[]
@@ -87,9 +90,7 @@ class ShockGraphDataset(Dataset):
             self.class_mapping=office31_map
             
         self.__gen_file_list()
-        
-        if self.cache:
-            self.__preprocess_graphs()
+        self.__preprocess_graphs()
             
         
     def __len__(self):
@@ -99,25 +100,29 @@ class ShockGraphDataset(Dataset):
     def __getitem__(self, index):
         'Generate one example of data'
 
+        features=self.sg_features[index]
+        label=self.sg_labels[index]
+
+        
         if self.cache:
             graph=self.sg_graphs[index]
-            label=self.sg_labels[index]
-            features=self.sg_features[index]
-        else:        
-            item=self.files[index]
-            graph,features=self.__read_shock_graph(item)
-            obj=os.path.basename(item)
-            obj=re.split(r'[0-9].*',obj)[0]
-            class_name=obj[:obj.rfind('_')]
-            label=self.class_mapping[class_name]
-
-        if self.data_augment:
-            self.__apply_da(graph,features)
-        else:
             F_matrix=np.copy(features[0])
             self.__recenter(F_matrix)
             graph.ndata['h']=torch.from_numpy(F_matrix)
             
+        else:        
+            adj_matrix=self.adj_matrices[index]        
+
+            if self.data_augment:
+                new_adj,new_F=self.__apply_da(adj_matrix,features)
+            else:
+                new_adj=adj_matrix
+                new_F=features[0]
+                
+            graph=self.__create_graph(new_adj)
+            graph.ndata['h']=torch.from_numpy(new_F)
+
+        
         return graph,label
 
     def __preprocess_adj_numpy(self,adj, symmetric=True):
@@ -146,16 +151,20 @@ class ShockGraphDataset(Dataset):
     def __preprocess_graphs(self):
 
         for fid in tqdm(self.files):
-            graph,features=self.__read_shock_graph(fid)
+            adj_matrix,features=self.__read_shock_graph(fid)
 
             obj=os.path.basename(fid)
             obj=re.split(r'[0-9].*',obj)[0]
             class_name=obj[:obj.rfind('_')]
             label=self.class_mapping[class_name]
 
-            self.sg_graphs.append(graph)
+            self.adj_matrices.append(adj_matrix)
             self.sg_labels.append(label)
             self.sg_features.append(features)
+
+            if self.cache:
+                graph=self.__create_graph(adj_matrix)
+                self.sg_graphs.append(graph)
             
     def __normalize_features(self,features):
         """Row-normalize feature matrix and convert to tuple representation"""
@@ -214,7 +223,7 @@ class ShockGraphDataset(Dataset):
 
         return pixel_values/255.0
             
-    def __apply_da(self,graph,features):
+    def __apply_da(self,orig_adj_matrix,features):
 
         F_matrix=np.copy(features[0])
         mask=features[1]
@@ -240,10 +249,46 @@ class ShockGraphDataset(Dataset):
         F_matrix[:,9:15]=new_trans_points
 
         self.trans=(flip,random_scale,random_trans)
-        self.__recenter(F_matrix)
+        new_adj_matrix,new_F_matrix=self.__compute_sorted_order(F_matrix,orig_adj_matrix)
+        self.__recenter(new_F_matrix)
 
-        graph.ndata['h']=torch.from_numpy(F_matrix)
+        return new_adj_matrix,new_F_matrix
 
+    def __compute_sorted_order(self,F_matrix,orig_adj_matrix):
+
+        node_order={}
+        
+        # define a sorting order for nodes in graph
+        key_tuples=[]
+        for i in range(F_matrix.shape[0]):
+            key_tuples.append((F_matrix[i][0],
+                               F_matrix[i][1],
+                               F_matrix[i][2],
+                               i))
+            
+        sorted_tuples=sorted(key_tuples,key=itemgetter(0,1,3),reverse=False)
+
+        new_adj_matrix=np.zeros((orig_adj_matrix.shape[0],orig_adj_matrix.shape[0]))
+        
+        new_list=[]
+        for idx in range(0,len(sorted_tuples)):
+            key=sorted_tuples[idx][3]
+            value=idx
+            node_order[key]=value
+            new_list.append(key)
+            
+ 
+        for row in range(0,orig_adj_matrix.shape[0]):
+            source_idx=node_order[row]
+            neighbors=orig_adj_matrix[row,:]
+            target=np.nonzero(neighbors)[0]
+            for t in target:
+                target_idx=node_order[t]
+                new_adj_matrix[source_idx][target_idx]=1
+
+        new_F_matrix=F_matrix[new_list,:]
+        return new_adj_matrix,new_F_matrix
+    
     def __recenter(self,F_matrix):
 
         # radius of shock point
@@ -370,13 +415,21 @@ class ShockGraphDataset(Dataset):
         self.factor=self.width*1.5
 
         # get image
-        image_name=sg_file.split('-')[0]+'.png'
-        img=imread(image_name)
-        F_color=self.__get_pixel_values(F_matrix_unwrapped,img)
+        if self.app:
+            image_name=sg_file.split('-')[0]+'.png'
+            img=imread(image_name)
+            F_color=self.__get_pixel_values(F_matrix_unwrapped,img)
 
-        # add color and shape features together
-        F_combined=np.concatenate((F_matrix_unwrapped,F_color),axis=1)
+            # add color and shape features together
+            F_combined=np.concatenate((F_matrix_unwrapped,F_color),axis=1)
+        else:
+            F_combined=F_matrix_unwrapped
+       
+        return adj_matrix,(F_combined,mask)
 
+
+    def __create_graph(self,adj_matrix):
+    
         # convert to dgl
         G=dgl.DGLGraph()
         G.add_nodes(adj_matrix.shape[0])
@@ -393,8 +446,8 @@ class ShockGraphDataset(Dataset):
                 if self.symmetric:
                     G.add_edges(target,source)
                                 
-        return G,(F_combined,mask)
-
+        return G
+     
 def collate(samples,device_name):
     # The input `samples` is a list of pairs
     #  (graph, label).

@@ -35,6 +35,7 @@ def main(args):
     train_dir=config_file['train_dir']
     dataset=config_file['dataset']
     cache_io=config_file['cache_io']
+    app_io=config_file['app']
     symm_io=config_file['symm_io']
     shuffle_io=config_file['shuffle_io']
     n_classes=config_file['num_classes']
@@ -49,7 +50,7 @@ def main(args):
     print('saving to prefix: ', prefix)
     
     # create train dataset
-    trainset=ShockGraphDataset(train_dir,dataset,cache=cache_io,symmetric=symm_io,data_augment=apply_da)
+    trainset=ShockGraphDataset(train_dir,dataset,app=app_io,cache=cache_io,symmetric=symm_io,data_augment=apply_da)
 
     # Use PyTorch's DataLoader and the collate function
     # defined before.
