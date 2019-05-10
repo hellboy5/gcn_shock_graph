@@ -118,6 +118,7 @@ class ShockGraphDataset(Dataset):
             else:
                 new_adj=adj_matrix
                 new_F=features[0]
+                self.__recenter(new_F)
                 
             graph=self.__create_graph(new_adj)
             graph.ndata['h']=torch.from_numpy(new_F)
