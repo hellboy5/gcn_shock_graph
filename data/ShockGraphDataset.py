@@ -56,7 +56,7 @@ office31_map={'back_pack':0,
               
 class ShockGraphDataset(Dataset):
     'Generates data for Keras'
-    def __init__(self,directory,dataset,app=False,cache=True,symmetric=False,data_augment=False):
+    def __init__(self,directory,dataset,app=False,cache=True,symmetric=False,data_augment=False,flip_pp=False):
         'Initialization'
         
         self.directory = directory
@@ -74,6 +74,7 @@ class ShockGraphDataset(Dataset):
         self.trans=()
         self.factor=1
         self.max_radius=1
+        self.flip_pp=flip_pp
         self.data_augment=data_augment
         
         if dataset=='cifar100':
@@ -415,6 +416,7 @@ class ShockGraphDataset(Dataset):
                               F_matrix_unwrapped[1,1]-self.width/2.0])
         self.factor=self.width*1.5
 
+
         # get image
         if self.app:
             image_name=sg_file.split('-')[0]+'.png'
@@ -425,8 +427,18 @@ class ShockGraphDataset(Dataset):
             F_combined=np.concatenate((F_matrix_unwrapped,F_color),axis=1)
         else:
             F_combined=F_matrix_unwrapped
-       
-        return adj_matrix,(F_combined,mask)
+
+
+        if self.flip_pp:
+            F_combined[:,1]=(self.width-F_combined[:,1])-self.width/2
+            F_combined[:,3:6]=math.pi-F_combined[:,3:6]
+            F_combined[:,15:18]=math.pi-F_combined[:,15:18]
+            new_adj_matrix,new_F_matrix=self.__compute_sorted_order(F_combined,adj_matrix)
+        else:
+            new_adj_matrix=adj_matrix
+            new_F_matrix=F_combined
+            
+        return new_adj_matrix,(new_F_matrix,mask)
 
 
     def __create_graph(self,adj_matrix):
