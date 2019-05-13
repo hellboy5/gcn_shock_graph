@@ -70,6 +70,7 @@ class ShockGraphDataset(Dataset):
         self.adj_matrices=[]
         self.width=1
         self.center=np.zeros(2)
+        self.image_size=1
         self.sg_features=[]
         self.trans=()
         self.factor=1
@@ -238,7 +239,7 @@ class ShockGraphDataset(Dataset):
             
         random_scale=np.random.rand(1)*(2-.5)+.5
         random_scale=random_scale if random_scale != 0 else 1
-        random_trans=np.random.rand(2)*10-5
+        random_trans=np.random.randint(-20,20,size=2)
         
         F_matrix[:,:2]+=random_trans
         F_matrix[:,:2]*=random_scale
@@ -250,13 +251,14 @@ class ShockGraphDataset(Dataset):
 
         F_matrix[:,9:15]=new_trans_points
 
-        self.trans=(flip,random_scale,random_trans)
-        new_adj_matrix,new_F_matrix=self.__compute_sorted_order(F_matrix,orig_adj_matrix)
+        self.trans=(flip,random_scale[0],random_trans)
+        F_pruned,adj_pruned,mask_pruned=self.__prune_ob(F_matrix,orig_adj_matrix,mask,self.image_size*random_scale)
+        new_adj_matrix,new_F_matrix,new_mask=self.__compute_sorted_order(F_pruned,adj_pruned,mask_pruned)
         self.__recenter(new_F_matrix)
 
         return new_adj_matrix,new_F_matrix
 
-    def __compute_sorted_order(self,F_matrix,orig_adj_matrix):
+    def __compute_sorted_order(self,F_matrix,orig_adj_matrix,mask):
 
         node_order={}
         
@@ -289,7 +291,8 @@ class ShockGraphDataset(Dataset):
                 new_adj_matrix[source_idx][target_idx]=1
 
         new_F_matrix=F_matrix[new_list,:]
-        return new_adj_matrix,new_F_matrix
+        new_mask=mask[new_list,:]
+        return new_adj_matrix,new_F_matrix,new_mask
     
     def __recenter(self,F_matrix):
 
@@ -330,6 +333,15 @@ class ShockGraphDataset(Dataset):
         F_matrix[:,11:13] /= self.factor
         F_matrix[:,13:15] /= self.factor
 
+
+    def __prune_ob(self,F_matrix,adj_matrix,mask,scale):
+
+        rows=np.unique(np.where((F_matrix[:,:2]<0)|(F_matrix[:,:2]>=scale))[0])
+        F_matrix=np.delete(F_matrix,rows,axis=0)
+        adj_matrix=np.delete(adj_matrix,rows,axis=0)
+        adj_matrix=np.delete(adj_matrix,rows,axis=1)
+        mask=np.delete(mask,rows,axis=0)
+        return F_matrix,adj_matrix,mask
         
     def __unwrap_data(self,F_matrix,debug_matrix):
 
@@ -414,6 +426,7 @@ class ShockGraphDataset(Dataset):
         self.width=(F_matrix_unwrapped[1,1]-F_matrix_unwrapped[0,1])
         self.center=np.array([F_matrix_unwrapped[1,1]-self.width/2.0,
                               F_matrix_unwrapped[1,1]-self.width/2.0])
+        self.image_size=self.center[0]*2
         self.factor=self.width*1.5
 
 
@@ -428,17 +441,19 @@ class ShockGraphDataset(Dataset):
         else:
             F_combined=F_matrix_unwrapped
 
-
-        if self.flip_pp:
-            F_combined[:,1]=(self.width-F_combined[:,1])-self.width/2
-            F_combined[:,3:6]=math.pi-F_combined[:,3:6]
-            F_combined[:,15:18]=math.pi-F_combined[:,15:18]
-            new_adj_matrix,new_F_matrix=self.__compute_sorted_order(F_combined,adj_matrix)
-        else:
-            new_adj_matrix=adj_matrix
-            new_F_matrix=F_combined
+        F_combined_pruned,adj_matrix_pruned,mask_pruned=self.__prune_ob(F_combined,adj_matrix,mask,self.image_size)
             
-        return new_adj_matrix,(new_F_matrix,mask)
+        if self.flip_pp:
+            F_combined_pruned[:,1]=(self.width-F_combined_pruned[:,1])-self.width/2
+            F_combined_pruned[:,3:6]=math.pi-F_combined_pruned[:,3:6]
+            F_combined_pruned[:,15:18]=mathmk.pi-F_combined_pruned[:,15:18]
+            new_adj_matrix,new_F_matrix,new_mask=self.__compute_sorted_order(F_combined_pruned,adj_matrix_pruned,mask_pruned)
+        else:
+            new_adj_matrix=adj_matrix_pruned
+            new_F_matrix=F_combined_pruned
+            new_mask=mask_pruned
+            
+        return new_adj_matrix,(new_F_matrix,new_mask)
 
 
     def __create_graph(self,adj_matrix):

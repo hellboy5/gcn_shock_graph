@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import math
+from scipy.ndimage.interpolation import zoom,shift
 from scipy.misc import imread,imresize
 from data.ShockGraphDataset import ShockGraphDataset
 
@@ -28,19 +29,21 @@ image='310.png'
 graph, label = stl10[0]
 
 trans=stl10.trans
-
-
+print(trans)
 img=imread(image)
-new_resize=(math.floor(img.shape[0]*trans[1]),math.floor(img.shape[1]*trans[1]))
-img=imresize(img,new_resize)
 
+if trans[0]:
+    img=np.fliplr(img)
+    
+shifted_input=shift(img, np.array([trans[2][0],trans[2][1],0]))
+scaled_input=zoom(shifted_input, np.array([trans[1],trans[1],1]))
+
+
+print(scaled_input.shape)
 positions= get_pos(graph)
 
 fig, ax = plt.subplots()
-if trans[0]:
-    plt.imshow(np.fliplr(img))
-else:
-    plt.imshow(img)
+plt.imshow(scaled_input)
     
 nx.draw(graph.to_networkx(), pos=positions,ax=ax)
 
