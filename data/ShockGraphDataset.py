@@ -229,7 +229,7 @@ class ShockGraphDataset(Dataset):
     def __apply_da(self,orig_adj_matrix,features):
 
         F_matrix=np.copy(features[0])
-        mask=features[1]
+        mask=np.copy(features[1])
         
         flip=random.randint(0,1)
         if flip:
@@ -336,11 +336,25 @@ class ShockGraphDataset(Dataset):
 
     def __prune_ob(self,F_matrix,adj_matrix,mask,scale):
 
+        # first round of delete
         rows=np.unique(np.where((F_matrix[:,:2]<0)|(F_matrix[:,:2]>=scale))[0])
         F_matrix=np.delete(F_matrix,rows,axis=0)
         adj_matrix=np.delete(adj_matrix,rows,axis=0)
         adj_matrix=np.delete(adj_matrix,rows,axis=1)
         mask=np.delete(mask,rows,axis=0)
+
+        # check if any disconnected nodes
+        out_degree=np.where(~adj_matrix.any(axis=1))[0]
+        in_degree=np.where(~adj_matrix.any(axis=0))[0]
+        rows=np.intersect1d(out_degree,in_degree)
+
+        # second round of delete
+        if rows.shape[0]:
+            F_matrix=np.delete(F_matrix,rows,axis=0)
+            adj_matrix=np.delete(adj_matrix,rows,axis=0)
+            adj_matrix=np.delete(adj_matrix,rows,axis=1)
+            mask=np.delete(mask,rows,axis=0)
+
         return F_matrix,adj_matrix,mask
         
     def __unwrap_data(self,F_matrix,debug_matrix):
