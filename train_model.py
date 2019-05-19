@@ -9,7 +9,7 @@ from models.gcn_sg_model import Classifier
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from functools import partial
-
+import os
 
 def train(config_file,device):
 
@@ -27,8 +27,9 @@ def train(config_file,device):
     epochs=config_file['epochs']
     batch_io=config_file['batch']
     apply_da=config_file['data_augment']
-
-    prefix='gcn_sg_model_'+dataset+'_'+aggregate+'_'+combine+'_'+str(hidden_dim)+'_'+str(hidden_layers)
+    bdir=os.path.basename(train_dir)
+    
+    prefix='gcn_sg_model_app_'+dataset+'_'+bdir+'_'+aggregate+'_'+combine+'_'+str(hidden_dim)+'_'+str(hidden_layers)
     
     print("Training with batch size of: ",batch_io," over ",epochs," Epochs with da: ",apply_da)
     print("Writing out to : ",prefix)

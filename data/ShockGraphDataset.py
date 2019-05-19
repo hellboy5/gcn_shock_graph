@@ -254,8 +254,14 @@ class ShockGraphDataset(Dataset):
         self.trans=(flip,random_scale[0],random_trans)
         F_pruned,adj_pruned,mask_pruned=self.__prune_ob(F_matrix,orig_adj_matrix,mask,self.image_size*random_scale)
         new_adj_matrix,new_F_matrix,new_mask=self.__compute_sorted_order(F_pruned,adj_pruned,mask_pruned)
-        self.__recenter(new_F_matrix)
 
+        new_center=np.zeros(2)
+        new_center[0]=(self.image_size*random_scale)/2.0
+        new_center[1]=(self.image_size*random_scale)/2.0
+        factor=((self.image_size*random_scale)/2.0)*1.2
+
+        self.__recenter(new_F_matrix,new_center,factor,absolute=False)
+        
         return new_adj_matrix,new_F_matrix
 
     def __compute_sorted_order(self,F_matrix,orig_adj_matrix,mask):
@@ -294,11 +300,21 @@ class ShockGraphDataset(Dataset):
         new_mask=mask[new_list,:]
         return new_adj_matrix,new_F_matrix,new_mask
     
-    def __recenter(self,F_matrix):
+    def __recenter(self,F_matrix,center=None,factor=None,absolute=True):
 
+        if center is None:
+            center=self.center
+
+        if factor is None:
+            factor=self.factor
+            
         # radius of shock point
-        F_matrix[:,2] /= self.max_radius*2.0
-
+        if absolute:
+            F_matrix[:,2] /= self.max_radius*2.0
+        else:
+            scale=np.max(F_matrix[:,2])
+            F_matrix[:,2] /= scale
+            
         # theta of node
         F_matrix[:,3] /= 2.0*math.pi
         F_matrix[:,4] /= 2.0*math.pi
@@ -315,23 +331,23 @@ class ShockGraphDataset(Dataset):
         F_matrix[:,17] /= 2.0*math.pi
 
         # remove ref pt for contour and shock points
-        F_matrix[:,:2] -=self.center
+        F_matrix[:,:2] -=center
 
         zero_set=np.array([0.0,0.0])
 
         for row_idx in range(0,F_matrix.shape[0]):
-            F_matrix[row_idx,9:11]-=self.center
+            F_matrix[row_idx,9:11]-=center
             
             if np.array_equal(F_matrix[row_idx,11:13],zero_set)==False:
-                F_matrix[row_idx,11:13]-=self.center
+                F_matrix[row_idx,11:13]-=center
                 
             if np.array_equal(F_matrix[row_idx,13:15],zero_set)==False:
-                F_matrix[row_idx,13:15]-=self.center
+                F_matrix[row_idx,13:15]-=center
 
-        F_matrix[:,:2] /= self.factor
-        F_matrix[:,9:11] /= self.factor
-        F_matrix[:,11:13] /= self.factor
-        F_matrix[:,13:15] /= self.factor
+        F_matrix[:,:2] /= factor
+        F_matrix[:,9:11] /= factor
+        F_matrix[:,11:13] /= factor
+        F_matrix[:,13:15] /= factor
 
 
     def __prune_ob(self,F_matrix,adj_matrix,mask,scale):
