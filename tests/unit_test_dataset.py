@@ -28,6 +28,10 @@ fname='/Users/naraym1/work/stl10/se_tcg_train/bird_310-n111-shock_graph.h5'
 image='310.png'
 graph, label = stl10[0]
 
+feature_matrix=graph.ndata['h'];
+print(np.any(feature_matrix>1))
+print(np.any(feature_matrix<-1))
+
 trans=stl10.trans
 print(trans)
 img=imread(image)
@@ -47,7 +51,6 @@ plt.imshow(scaled_input)
     
 nx.draw(graph.to_networkx(), pos=positions,ax=ax)
 
-feature_matrix=graph.ndata['h'];
 zero_set=np.array([0.0,0.0])
 for row_idx in range(0,feature_matrix.shape[0]):
     pt=feature_matrix[row_idx,9:11]
