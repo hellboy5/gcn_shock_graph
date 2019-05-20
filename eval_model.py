@@ -8,12 +8,35 @@ from models.gcn_sg_model import Classifier
 from torch.utils.data import DataLoader
 from functools import partial
 
-def eval(config_file,state_path,device):
+def classify_data(model,testset,batch_io,device):
+
+    # Use PyTorch's DataLoader and the collate function
+    # defined before.
+    data_loader = DataLoader(testset, batch_size=batch_io, shuffle=False,
+                             collate_fn=partial(collate,device_name=device))
+
+    predicted=np.array([],dtype=np.int32)
+    groundtruth=np.array([],np.int32)
+    scores=np.array([])
+    
+    for iter, (bg, label) in enumerate(data_loader):
+        output = model(bg)
+        probs_Y = torch.softmax(output, 1)
+        max_scores,estimate = torch.max(probs_Y, 1)
+        estimate=estimate.view(-1,1)
+
+        predicted=np.append(predicted,estimate.to("cpu").detach().numpy())
+        groundtruth=np.append(groundtruth,label.to("cpu"))
+        scores=np.append(scores,max_scores.to("cpu").detach().numpy())
+
+    return groundtruth,predicted,scores
+
+def eval(config_file,state_path,device,flip):
 
     
     test_dir=config_file['test_dir']
     dataset=config_file['dataset']
-    cache_io=config_file['cache_io']
+    cache_io=True
     symm_io=config_file['symm_io']
     shuffle_io=False
     num_classes=config_file['num_classes']
@@ -30,32 +53,31 @@ def eval(config_file,state_path,device):
     model.eval()
 
     testset=ShockGraphDataset(test_dir,dataset,cache=cache_io,symmetric=symm_io,data_augment=False)
-
-    # Use PyTorch's DataLoader and the collate function
-    # defined before.
-    data_loader = DataLoader(testset, batch_size=batch_io, shuffle=False,
-                             collate_fn=partial(collate,device_name=device))
-
-    predicted=torch.LongTensor()
-    groundtruth=torch.LongTensor()
-    confusion_matrix=np.zeros((num_classes,num_classes))
-    for iter, (bg, label) in enumerate(data_loader):
-        output = model(bg)
-        estimate = torch.max(output, 1)[1].view(-1, 1)
-
-        predicted=torch.cat((predicted,estimate.to("cpu")),0)
-        groundtruth=torch.cat((groundtruth,label.to("cpu")),0)
+    if flip:
+        testset_flip=ShockGraphDataset(test_dir,dataset,cache=cache_io,symmetric=symm_io,data_augment=False,flip_pp=True)
 
 
-        
-    groundtruth=groundtruth.view(-1)
-    predicted=predicted.view(-1)
+    groundtruth,predicted,scores=classify_data(model,testset,batch_io,device)
 
+    if flip:
+        _,predicted_flip,scores_flip=classify_data(model,testset_flip,batch_io,device)
+
+    confusion_matrix=np.zeros(( num_classes, num_classes))
+
+    combined_predicted=np.copy(predicted)
+
+    if flip:
+        for i in range(groundtruth.shape[0]):
+            if scores_flip[i] > scores[i]:
+                print("flipping: ",scores_flip[i],scores[i],combined_predicted[i],predicted_flip[i])
+                combined_predicted[i]=predicted_flip[i]
+                                        
     for ind in range(0,groundtruth.shape[0]):
-        if groundtruth[ind]==predicted[ind]:
+
+        if groundtruth[ind]==combined_predicted[ind]:
             confusion_matrix[groundtruth[ind],groundtruth[ind]]+=1
         else:
-            confusion_matrix[groundtruth[ind],predicted[ind]]+=1
+            confusion_matrix[groundtruth[ind],combined_predicted[ind]]+=1
 
     confusion_matrix=(confusion_matrix/np.sum(confusion_matrix,1)[:,None])*100
 
@@ -67,8 +89,9 @@ def eval(config_file,state_path,device):
     print("mAP: ",np.mean(mAP))
     print(groundtruth)
     print(predicted)
-    print('Accuracy of argmax predictedions on the test set: {:4f}%'.format(
-         (groundtruth == predicted).sum().item() / len(groundtruth) * 100))
+    print(combined_predicted)
+    print('Accuracy of argmax combined_predictedions on the test set: {:4f}%'.format(
+         (groundtruth == combined_predicted).sum().item() / len(groundtruth) * 100))
 
 
 
@@ -83,5 +106,6 @@ if __name__ == "__main__":
     
     state_path=sys.argv[3]
 
-    eval(config_file,state_path,device)
+    flip=sys.argv[4]
+    eval(config_file,state_path,device,int(flip))
     
