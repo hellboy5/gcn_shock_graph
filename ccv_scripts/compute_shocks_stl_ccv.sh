@@ -16,12 +16,12 @@ echo "Starting job $SLURM_ARRAY_TASK_ID on $HOSTNAME"
 
 
 offset=$(( $SLURM_ARRAY_TASK_ID-1 ))
-start=$(( $offset*1 ))
+start=$(( $offset*2 ))
 let start++
-stop=$(( $SLURM_ARRAY_TASK_ID*1 ))
+stop=$(( $SLURM_ARRAY_TASK_ID*2 ))
 
 
-lines=`wc -l /users/mnarayan/scratch/scripts/stl_lo.txt | cut -d" " -f1`
+lines=`wc -l /users/mnarayan/scratch/scripts/debug_files.txt | cut -d" " -f1`
 echo "Working on files between $start and $stop"
 for i in $(seq $start $stop)
 do
@@ -32,16 +32,16 @@ do
         exit
     fi
 
-    FILE=$(awk "NR==$i" /users/mnarayan/scratch/scripts/stl_lo.txt)
+    FILE=$(awk "NR==$i" /users/mnarayan/scratch/scripts/debug_files.txt)
     echo "Working on $FILE line number $i"
-    matlab -r "addpath /users/mnarayan/scratch/Topological_Contour_Graph/util/io; cem2cemv('$FILE'); exit"
+    matlab -r "addpath /users/mnarayan/Topological_Contour_Graph/util/io; cem2cemv('$FILE','_se_tcg'); exit"
 
     /users/mnarayan/scratch/scripts/compute_shocks.sh $FILE
     esf_file=`echo $FILE | sed s/\.png/_se_tcg\.esf/g`
     echo "Esf file: $esf_file"
 
 
-    python /users/mnarayan/scratch/gcn_shock_graph/shock_graph.py $esf_file $FILE
+    python /users/mnarayan/scratch/gcn_shock_graph/utils/shock_graph_convert.py $esf_file $FILE
 
     cemv_file=`echo $FILE | sed s/\.png/_se_tcg\.cemv/g`
     h5_file=`echo $FILE | sed s/\.png/_se_tcg\*h5/g`
