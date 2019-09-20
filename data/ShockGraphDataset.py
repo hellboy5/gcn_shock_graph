@@ -109,7 +109,7 @@ class ShockGraphDataset(Dataset):
         if self.cache:
             graph=self.sg_graphs[index]
             F_matrix=np.copy(features[0])
-            self.__recenter(F_matrix)
+            self.__recenter(F_matrix,absolute=False)
             graph.ndata['h']=torch.from_numpy(F_matrix)
             
         else:        
@@ -120,7 +120,7 @@ class ShockGraphDataset(Dataset):
             else:
                 new_adj=adj_matrix
                 new_F=features[0]
-                self.__recenter(new_F)
+                self.__recenter(new_F,absolute=False)
                 
             graph=self.__create_graph(new_adj)
             graph.ndata['h']=torch.from_numpy(new_F)
@@ -150,7 +150,7 @@ class ShockGraphDataset(Dataset):
         
     def __gen_file_list(self):
         self.files=glob.glob(self.directory+'/*.h5')
-
+        
     def __preprocess_graphs(self):
 
         for fid in tqdm(self.files):
@@ -168,7 +168,7 @@ class ShockGraphDataset(Dataset):
             if self.cache:
                 graph=self.__create_graph(adj_matrix)
                 self.sg_graphs.append(graph)
-            
+
     def __normalize_features(self,features):
         """Row-normalize feature matrix and convert to tuple representation"""
         rowsum = np.array(features.sum(1))
@@ -457,8 +457,7 @@ class ShockGraphDataset(Dataset):
         self.center=np.array([F_matrix_unwrapped[1,1]-self.width/2.0,
                               F_matrix_unwrapped[1,1]-self.width/2.0])
         self.image_size=self.center[0]*2
-        self.factor=self.width*1.5
-
+        self.factor=(self.image_size/2.0)*1.2
 
         # get image
         if self.app:
@@ -476,8 +475,15 @@ class ShockGraphDataset(Dataset):
         if self.flip_pp:
             F_combined_pruned[:,1]=(self.width-F_combined_pruned[:,1])-self.width/2
             F_combined_pruned[:,3:6]=math.pi-F_combined_pruned[:,3:6]
-            F_combined_pruned[:,15:18]=mathmk.pi-F_combined_pruned[:,15:18]
+            F_combined_pruned[:,15:18]=math.pi-F_combined_pruned[:,15:18]
+
+            v=F_combined_pruned[:,3:6]+F_combined_pruned[:,6:9]
+            new_trans_points=self.__translate_points(F_combined_pruned[:,:2],v,F_combined_pruned[:,2])
+            new_trans_points=new_trans_points*mask_pruned
+
+            F_combined_pruned[:,9:15]=new_trans_points
             new_adj_matrix,new_F_matrix,new_mask=self.__compute_sorted_order(F_combined_pruned,adj_matrix_pruned,mask_pruned)
+            
         else:
             new_adj_matrix=adj_matrix_pruned
             new_F_matrix=F_combined_pruned
