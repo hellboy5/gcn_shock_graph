@@ -217,15 +217,29 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
                item=node_mapping[key].plus_pt[idx]
                feature_matrix[row][0+idx*2+start]=item[1]
                feature_matrix[row][1+idx*2+start]=item[0]
+
+          # populate right_boundary_points of node
+          start=15
+          for idx in range(0,len(node_mapping[key].minus_pt)):
+               item=node_mapping[key].minus_pt[idx]
+               feature_matrix[row][0+idx*2+start]=item[1]
+               feature_matrix[row][1+idx*2+start]=item[0]
+          
           
           #populate plus_theta of node
-          start=15
+          start=21
           for idx in range(0,len(node_mapping[key].plus_theta)):
                item=node_mapping[key].plus_theta[idx]
                feature_matrix[row][idx+start]=item/pi
 
+          #populate minus_theta of node
+          start=24
+          for idx in range(0,len(node_mapping[key].minus_theta)):
+               item=node_mapping[key].minus_theta[idx]
+               feature_matrix[row][idx+start]=item/pi
+
           # populate data type
-          start=18
+          start=27
           label=node_mapping[key].type
           if label == 'A':
                out=0.0
@@ -258,12 +272,15 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
      
      for row_idx in range(0,feature_matrix.shape[0]):
           feature_matrix[row_idx,9:11]-=reference_pt
+          feature_matrix[row_idx,15:17]-=reference_pt
 
           if np.array_equal(feature_matrix[row_idx,11:13],zero_set)==False:
                feature_matrix[row_idx,11:13]-=reference_pt
-               
+               feature_matrix[row_idx,17:19]-=reference_pt
+
           if np.array_equal(feature_matrix[row_idx,13:15],zero_set)==False:
                feature_matrix[row_idx,13:15]-=reference_pt
+               feature_matrix[row_idx,19:21]-=reference_pt
 
      max_offsets=np.amax(np.abs(feature_matrix[:,:2]),axis=0)
      max_radius=np.amax(feature_matrix,axis=0)[2]
@@ -271,8 +288,11 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
      feature_matrix[:,:2] /= max_offsets
      feature_matrix[:,2] /= max_radius
      feature_matrix[:,9:11] /= max_offsets
+     feature_matrix[:,15:17] /= max_offsets
      feature_matrix[:,11:13] /= max_offsets
+     feature_matrix[:,17:19] /= max_offsets
      feature_matrix[:,13:15] /= max_offsets
+     feature_matrix[:,19:21] /= max_offsets
 
      debug=np.concatenate((reference_pt,max_offsets,np.array([max_radius])),
                           axis=0)
@@ -291,7 +311,7 @@ def convertEsfFile(esf_file,image_file):
      sample_data=12
      node_info=9
      edge_offset=4
-     edge_features=19
+     edge_features=28
      
      _,numb_nodes=lines[7].split(':')
      _,numb_edges=lines[8].split(':')
