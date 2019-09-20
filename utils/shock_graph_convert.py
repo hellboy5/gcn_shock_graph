@@ -18,6 +18,7 @@ node_order=dict()
 node_mapping=dict()
 samp_to_node_mapping=defaultdict(list)
 edge_mapping=defaultdict(list)
+adj_nodes_mapping=defaultdict(list)
 Sample=namedtuple('Sample','pt type radius theta phi plus_pt \
 minus_pt plus_theta minus_theta')
 highest_degree=0
@@ -72,6 +73,9 @@ def read_node_header(node_line,lines,numb_nodes):
           for key in adj_samples:
                if len(key):
                     samp_to_node_mapping[int(key)].append(int(node_id))
+          for key in adj_nodes:
+               if len(key):
+                    adj_nodes_mapping[int(node_id)].append(int(key))
 
 # process node sample data
 def read_node_samples(sample_line,lines,sample_data,node_info):
@@ -185,6 +189,11 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
      for key in node_mapping:
           row=node_order[key]
 
+          order_list=[]
+          for value in adj_nodes_mapping[key]:
+               order_list.append(node_mapping[value].radius[0])
+          rad_list=np.argsort(order_list)
+
           # populate points of node location
           item=node_mapping[key].pt[0]
           feature_matrix[row][0]=item[1]
@@ -202,26 +211,26 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
           #populate theta of node
           start=3
           for idx in range(0,len(node_mapping[key].theta)):
-               item=node_mapping[key].theta[idx]
+               item=node_mapping[key].theta[rad_list[idx]]
                feature_matrix[row][idx+start]=item/(2.0*pi)
 
           #populate phi of node
           start=6
           for idx in range(0,len(node_mapping[key].phi)):
-               item=node_mapping[key].phi[idx]
+               item=node_mapping[key].phi[rad_list[idx]]
                feature_matrix[row][idx+start]=item/pi
 
           # populate left_boundary_points of node
           start=9
           for idx in range(0,len(node_mapping[key].plus_pt)):
-               item=node_mapping[key].plus_pt[idx]
+               item=node_mapping[key].plus_pt[rad_list[idx]]
                feature_matrix[row][0+idx*2+start]=item[1]
                feature_matrix[row][1+idx*2+start]=item[0]
 
           # populate right_boundary_points of node
           start=15
           for idx in range(0,len(node_mapping[key].minus_pt)):
-               item=node_mapping[key].minus_pt[idx]
+               item=node_mapping[key].minus_pt[rad_list[idx]]
                feature_matrix[row][0+idx*2+start]=item[1]
                feature_matrix[row][1+idx*2+start]=item[0]
           
@@ -229,13 +238,13 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
           #populate plus_theta of node
           start=21
           for idx in range(0,len(node_mapping[key].plus_theta)):
-               item=node_mapping[key].plus_theta[idx]
+               item=node_mapping[key].plus_theta[rad_list[idx]]
                feature_matrix[row][idx+start]=item/pi
 
           #populate minus_theta of node
           start=24
           for idx in range(0,len(node_mapping[key].minus_theta)):
-               item=node_mapping[key].minus_theta[idx]
+               item=node_mapping[key].minus_theta[rad_list[idx]]
                feature_matrix[row][idx+start]=item/pi
 
           # populate data type
@@ -252,7 +261,6 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
           else:
                out=1.0
           feature_matrix[row][start]=out
-
 
      sorted_locations=sorted(locations,key=itemgetter(0,1),reverse=False)
      ul_corner=sorted_locations[0]
@@ -338,6 +346,7 @@ def convertEsfFile(esf_file,image_file):
      hf.create_dataset('debug',data=ref_point)
 
      hf.close()
+
      
 if __name__ == '__main__':
      esf_file=sys.argv[1]
