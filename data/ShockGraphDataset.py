@@ -53,7 +53,35 @@ office31_map={'back_pack':0,
               'stapler':28,
               'tape_dispenser':29,
               'trash_can':30}
-              
+
+
+
+def fixAngleMPiPi_new_vector(vec):
+    output=np.zeros(np.shape(vec))
+    it=np.nditer(vec,flags=['f_index'])
+    for a in it:
+        if a < -math.pi:
+            output[it.index]=a+2.0*math.pi
+        elif a > math.pi:
+            output[it.index]=a-2.0*math.pi;
+        else:
+            output[it.index]=a
+
+    return output
+
+def fixAngle2PiPi_new_vector(vec):
+    output=np.zeros(np.shape(vec))
+    it=np.nditer(vec,flags=['f_index'])
+    for a in it:
+        if a < -2.0*math.pi:
+            output[it.index]=a+2.0*math.pi
+        elif a > 2.0*math.pi:
+            output[it.index]=a-2.0*math.pi;
+        else:
+            output[it.index]=a
+
+    return output
+
 class ShockGraphDataset(Dataset):
     'Generates data for Keras'
     def __init__(self,directory,dataset,app=False,cache=True,symmetric=False,data_augment=False,flip_pp=False):
@@ -124,7 +152,6 @@ class ShockGraphDataset(Dataset):
                 
             graph=self.__create_graph(new_adj)
             graph.ndata['h']=torch.from_numpy(new_F)
-
         
         return graph,label
 
@@ -230,7 +257,7 @@ class ShockGraphDataset(Dataset):
 
         F_matrix=np.copy(features[0])
         mask=np.copy(features[1])
-        
+
         flip=random.randint(0,1)
         if flip:
             F_matrix[:,1]=(self.width-F_matrix[:,1])-self.width/2
@@ -247,10 +274,9 @@ class ShockGraphDataset(Dataset):
 
         v=F_matrix[:,3:6]+F_matrix[:,6:9]
         new_trans_points=self.__translate_points(F_matrix[:,:2],v,F_matrix[:,2])
-        new_trans_points=new_trans_points*mask
-
         F_matrix[:,9:15]=new_trans_points
-
+        F_matrix=F_matrix*mask
+        
         self.trans=(flip,random_scale[0],random_trans)
         F_pruned,adj_pruned,mask_pruned=self.__prune_ob(F_matrix,orig_adj_matrix,mask,self.image_size*random_scale)
         new_adj_matrix,new_F_matrix,new_mask=self.__compute_sorted_order(F_pruned,adj_pruned,mask_pruned)
@@ -406,10 +432,20 @@ class ShockGraphDataset(Dataset):
         feature_matrix[:,11:13] *= max_offsets
         feature_matrix[:,13:15] *= max_offsets
 
+        # right boundary point
+        feature_matrix[:,15:17] *= max_offsets
+        feature_matrix[:,17:19] *= max_offsets
+        feature_matrix[:,19:21] *= max_offsets
+
         # plus theta
-        feature_matrix[:,15] *= math.pi
-        feature_matrix[:,16] *= math.pi
-        feature_matrix[:,17] *= math.pi
+        feature_matrix[:,21] *= math.pi
+        feature_matrix[:,22] *= math.pi
+        feature_matrix[:,23] *= math.pi
+
+        # minus theta
+        feature_matrix[:,24] *= math.pi
+        feature_matrix[:,25] *= math.pi
+        feature_matrix[:,26] *= math.pi
 
         # remove ref pt for contour and shock points
         feature_matrix[:,0] +=ref_pt[0]
@@ -417,19 +453,33 @@ class ShockGraphDataset(Dataset):
 
         zero_set=np.array([0.0,0.0])
 
-        mask=np.ones((feature_matrix.shape[0],6))
+        mask=np.ones(feature_matrix.shape,dtype=np.float32)
         for row_idx in range(0,feature_matrix.shape[0]):
             feature_matrix[row_idx,9:11]+=ref_pt
-            
+            feature_matrix[row_idx,15:17]+=ref_pt
+                        
             if np.array_equal(feature_matrix[row_idx,11:13],zero_set)==False:
                 feature_matrix[row_idx,11:13]+=ref_pt
+                feature_matrix[row_idx,17:19]+=ref_pt
             else:
-                mask[row_idx,2:4]=0
-                
+                mask[row_idx,11:13]=0
+                mask[row_idx,4]=0
+                mask[row_idx,7]=0
+                mask[row_idx,22]=0
+                mask[row_idx,25]=0
+                mask[row_idx,17:19]=0
+
             if np.array_equal(feature_matrix[row_idx,13:15],zero_set)==False:
                 feature_matrix[row_idx,13:15]+=ref_pt
+                feature_matrix[row_idx,19:21]+=ref_pt
             else:
-                mask[row_idx,4:6]=0
+                mask[row_idx,13:15]=0
+                mask[row_idx,5]=0
+                mask[row_idx,8]=0
+                mask[row_idx,23]=0
+                mask[row_idx,26]=0
+                mask[row_idx,19:21]=0
+
 
         return feature_matrix,mask
         
@@ -473,15 +523,34 @@ class ShockGraphDataset(Dataset):
         F_combined_pruned,adj_matrix_pruned,mask_pruned=self.__prune_ob(F_combined,adj_matrix,mask,self.image_size)
             
         if self.flip_pp:
-            F_combined_pruned[:,1]=(self.width-F_combined_pruned[:,1])-self.width/2
+            F_combined_pruned[:,1]=((self.width-1)-F_combined_pruned[:,1])-self.width/2
             F_combined_pruned[:,3:6]=math.pi-F_combined_pruned[:,3:6]
-            F_combined_pruned[:,15:18]=math.pi-F_combined_pruned[:,15:18]
 
-            v=F_combined_pruned[:,3:6]+F_combined_pruned[:,6:9]
-            new_trans_points=self.__translate_points(F_combined_pruned[:,:2],v,F_combined_pruned[:,2])
-            new_trans_points=new_trans_points*mask_pruned
+            v_plus=F_combined_pruned[:,3:6]+F_combined_pruned[:,6:9]
+            new_plus=self.__translate_points(F_combined_pruned[:,:2],v_plus,F_combined_pruned[:,2])
+            v_minus=F_combined_pruned[:,3:6]-F_combined_pruned[:,6:9]
+            new_minus=self.__translate_points(F_combined_pruned[:,:2],v_minus,F_combined_pruned[:,2])
 
-            F_combined_pruned[:,9:15]=new_trans_points
+            F_combined_pruned[:,9:15]=new_plus
+            F_combined_pruned[:,15:21]=new_minus
+
+            F_combined_pruned[:,3:6]+=2*math.pi
+            F_combined_pruned[:,3]=fixAngle2PiPi_new_vector(F_combined_pruned[:,3])
+            F_combined_pruned[:,4]=fixAngle2PiPi_new_vector(F_combined_pruned[:,4])
+            F_combined_pruned[:,5]=fixAngle2PiPi_new_vector(F_combined_pruned[:,5])
+
+            # plus theta
+            F_combined_pruned[:,21] = fixAngleMPiPi_new_vector(F_combined_pruned[:,3]+F_combined_pruned[:,6]-(math.pi/2.0));
+            F_combined_pruned[:,22] = fixAngleMPiPi_new_vector(F_combined_pruned[:,4]+F_combined_pruned[:,7]-(math.pi/2.0));
+            F_combined_pruned[:,23] = fixAngleMPiPi_new_vector(F_combined_pruned[:,5]+F_combined_pruned[:,8]-(math.pi/2.0));
+
+            # minus theta
+            F_combined_pruned[:,24] = fixAngleMPiPi_new_vector(F_combined_pruned[:,3]-F_combined_pruned[:,6]+math.pi/2.0);
+            F_combined_pruned[:,25] = fixAngleMPiPi_new_vector(F_combined_pruned[:,4]-F_combined_pruned[:,7]+math.pi/2.0);
+            F_combined_pruned[:,26] = fixAngleMPiPi_new_vector(F_combined_pruned[:,5]-F_combined_pruned[:,8]+math.pi/2.0);
+
+            F_combined_pruned=F_combined_pruned*mask_pruned
+            
             new_adj_matrix,new_F_matrix,new_mask=self.__compute_sorted_order(F_combined_pruned,adj_matrix_pruned,mask_pruned)
             
         else:
