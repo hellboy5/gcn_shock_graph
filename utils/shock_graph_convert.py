@@ -122,15 +122,15 @@ def read_node_samples(sample_line,lines,sample_data,node_info):
           for val in ids:
                node_data=node_mapping[val]
 
-               node_data.pt.append(pt)
-               node_data.radius.append(radius)
-               node_data.theta.append(theta)
-               node_data.phi.append(phi)
-               node_data.plus_pt.append(left_bnd_pt)
-               node_data.minus_pt.append(right_bnd_pt)
-               node_data.plus_theta.append(left_bnd_tangent)
-               node_data.minus_theta.append(right_bnd_tangent)     
-
+               if len(node_data.pt) < len(adj_nodes_mapping[val]):
+                    node_data.pt.append(pt)
+                    node_data.radius.append(radius)
+                    node_data.theta.append(theta)
+                    node_data.phi.append(phi)
+                    node_data.plus_pt.append(left_bnd_pt)
+                    node_data.minus_pt.append(right_bnd_pt)
+                    node_data.plus_theta.append(left_bnd_tangent)
+                    node_data.minus_theta.append(right_bnd_tangent)
 
 #process edge information 
 def read_edge_header(sample_line,lines,sample_data,edge_offset,numb_edges):
