@@ -260,9 +260,8 @@ class ShockGraphDataset(Dataset):
 
         flip=random.randint(0,1)
         if flip:
-            F_matrix[:,1]=(self.width-F_matrix[:,1])-self.width/2
+            F_matrix[:,1]=((self.width-1)-F_matrix[:,1])-self.width/2
             F_matrix[:,3:6]=math.pi-F_matrix[:,3:6]
-            F_matrix[:,15:18]=math.pi-F_matrix[:,15:18]
             
         random_scale=np.random.rand(1)*(2-.5)+.5
         random_scale=random_scale if random_scale != 0 else 1
@@ -272,9 +271,31 @@ class ShockGraphDataset(Dataset):
         F_matrix[:,:2]*=random_scale
         F_matrix[:,2]*=random_scale
 
-        v=F_matrix[:,3:6]+F_matrix[:,6:9]
-        new_trans_points=self.__translate_points(F_matrix[:,:2],v,F_matrix[:,2])
-        F_matrix[:,9:15]=new_trans_points
+        v_plus=F_matrix[:,3:6]+F_matrix[:,6:9]
+        new_plus=self.__translate_points(F_matrix[:,:2],v_plus,F_matrix[:,2])
+        v_minus=F_matrix[:,3:6]-F_matrix[:,6:9]
+        new_minus=self.__translate_points(F_matrix[:,:2],v_minus,F_matrix[:,2])
+                                             
+        F_matrix[:,9:15]=new_plus
+        F_matrix[:,15:21]=new_minus
+
+        if flip:
+            F_matrix[:,3:6]+=2*math.pi
+            F_matrix[:,3]=fixAngle2PiPi_new_vector(F_matrix[:,3])
+            F_matrix[:,4]=fixAngle2PiPi_new_vector(F_matrix[:,4])
+            F_matrix[:,5]=fixAngle2PiPi_new_vector(F_matrix[:,5])
+        
+            # plus theta
+            F_matrix[:,21] = fixAngleMPiPi_new_vector(F_matrix[:,3]+F_matrix[:,6]-(math.pi/2.0));
+            F_matrix[:,22] = fixAngleMPiPi_new_vector(F_matrix[:,4]+F_matrix[:,7]-(math.pi/2.0));
+            F_matrix[:,23] = fixAngleMPiPi_new_vector(F_matrix[:,5]+F_matrix[:,8]-(math.pi/2.0));
+        
+            # minus theta
+            F_matrix[:,24] = fixAngleMPiPi_new_vector(F_matrix[:,3]-F_matrix[:,6]+math.pi/2.0);
+            F_matrix[:,25] = fixAngleMPiPi_new_vector(F_matrix[:,4]-F_matrix[:,7]+math.pi/2.0);
+            F_matrix[:,26] = fixAngleMPiPi_new_vector(F_matrix[:,5]-F_matrix[:,8]+math.pi/2.0);
+
+        #mask
         F_matrix=F_matrix*mask
         
         self.trans=(flip,random_scale[0],random_trans)
@@ -352,9 +373,14 @@ class ShockGraphDataset(Dataset):
         F_matrix[:,8] /= math.pi
 
         # plus theta
-        F_matrix[:,15] /= 2.0*math.pi
-        F_matrix[:,16] /= 2.0*math.pi
-        F_matrix[:,17] /= 2.0*math.pi
+        feature_matrix[:,21] *= math.pi
+        feature_matrix[:,22] *= math.pi
+        feature_matrix[:,23] *= math.pi
+
+        # minus theta
+        feature_matrix[:,24] *= math.pi
+        feature_matrix[:,25] *= math.pi
+        feature_matrix[:,26] *= math.pi
 
         # remove ref pt for contour and shock points
         F_matrix[:,:2] -=center
