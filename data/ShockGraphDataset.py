@@ -373,14 +373,14 @@ class ShockGraphDataset(Dataset):
         F_matrix[:,8] /= math.pi
 
         # plus theta
-        feature_matrix[:,21] *= math.pi
-        feature_matrix[:,22] *= math.pi
-        feature_matrix[:,23] *= math.pi
+        F_matrix[:,21] /= math.pi
+        F_matrix[:,22] /= math.pi
+        F_matrix[:,23] /= math.pi
 
         # minus theta
-        feature_matrix[:,24] *= math.pi
-        feature_matrix[:,25] *= math.pi
-        feature_matrix[:,26] *= math.pi
+        F_matrix[:,24] /= math.pi
+        F_matrix[:,25] /= math.pi
+        F_matrix[:,26] /= math.pi
 
         # remove ref pt for contour and shock points
         F_matrix[:,:2] -=center
@@ -389,17 +389,19 @@ class ShockGraphDataset(Dataset):
 
         for row_idx in range(0,F_matrix.shape[0]):
             F_matrix[row_idx,9:11]-=center
+            F_matrix[row_idx,15:17]-=center
             
             if np.array_equal(F_matrix[row_idx,11:13],zero_set)==False:
                 F_matrix[row_idx,11:13]-=center
+                F_matrix[row_idx,17:19]-=center
                 
             if np.array_equal(F_matrix[row_idx,13:15],zero_set)==False:
                 F_matrix[row_idx,13:15]-=center
+                F_matrix[row_idx,19:21]-=center
 
         F_matrix[:,:2] /= factor
-        F_matrix[:,9:11] /= factor
-        F_matrix[:,11:13] /= factor
-        F_matrix[:,13:15] /= factor
+        F_matrix[:,9:15] /= factor
+        F_matrix[:,15:21] /= factor
 
 
     def __prune_ob(self,F_matrix,adj_matrix,mask,scale):
