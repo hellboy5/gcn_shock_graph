@@ -601,6 +601,7 @@ class ShockGraphDataset(Dataset):
             target=np.nonzero(neighbors)[0]
             source=np.zeros(target.shape)+row
 
+            G.add_edges(row,row)
             
             if target.size:
                 G.add_edges(source,target)
