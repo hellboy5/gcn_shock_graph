@@ -27,9 +27,10 @@ def train(config_file,device):
     epochs=config_file['epochs']
     batch_io=config_file['batch']
     apply_da=config_file['data_augment']
+    dropout=config_file['dropout']
     bdir=os.path.basename(train_dir)
     
-    prefix='gcn_sg_model_app_'+dataset+'_'+bdir+'_'+aggregate+'_'+combine+'_'+str(hidden_dim)+'_'+str(hidden_layers)
+    prefix='gcn_sg_model_'+dataset+'_'+bdir+'_'+aggregate+'_'+combine+'_'+str(hidden_dim)+'_'+str(hidden_layers)
     
     print("Training with batch size of: ",batch_io," over ",epochs," Epochs with da: ",apply_da)
     print("Writing out to : ",prefix)
@@ -44,9 +45,10 @@ def train(config_file,device):
                              collate_fn=partial(collate,device_name=device))
     
     # Create model
-    model = Classifier(input_dim, hidden_dim, num_classes,hidden_layers,aggregate,combine,device)
+    model = Classifier(input_dim, hidden_dim, num_classes,hidden_layers,combine,nn.functional.relu,
+                       dropout,device)
     loss_func = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)#,weight_decay=0.00005/2.0)
+    optimizer = optim.Adam(model.parameters(), lr=0.001,weight_decay=5e-4)
     model.to(device)
     model.train()
     
