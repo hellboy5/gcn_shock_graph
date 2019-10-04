@@ -1,5 +1,6 @@
 import dgl
 import torch
+import torch.nn as nn
 import json
 import sys
 from tqdm import tqdm
@@ -15,6 +16,7 @@ def classify_data(model,testset,batch_io,device):
     data_loader = DataLoader(testset, batch_size=batch_io, shuffle=False,
                              collate_fn=partial(collate,device_name=device))
 
+    testfiles=testset.files
     predicted=np.array([],dtype=np.int32)
     groundtruth=np.array([],np.int32)
     scores=np.array([])
@@ -29,7 +31,7 @@ def classify_data(model,testset,batch_io,device):
         groundtruth=np.append(groundtruth,label.to("cpu"))
         scores=np.append(scores,max_scores.to("cpu").detach().numpy())
 
-    return groundtruth,predicted,scores
+    return groundtruth,predicted,scores,testfiles
 
 def eval(config_file,state_path,device,flip):
 
@@ -46,8 +48,10 @@ def eval(config_file,state_path,device,flip):
     aggregate=config_file['aggregate']
     combine=config_file['combine']
     batch_io=config_file['batch']
+    dropout=config_file['dropout']
 
-    model = Classifier(input_dim, hidden_dim, num_classes,hidden_layers,aggregate,combine,device)
+    model = Classifier(input_dim, hidden_dim, num_classes,hidden_layers,combine,nn.functional.relu,
+                       dropout,device)
     model.load_state_dict(torch.load(state_path)['model_state_dict'])
     model.to(device)
     model.eval()
@@ -57,10 +61,10 @@ def eval(config_file,state_path,device,flip):
         testset_flip=ShockGraphDataset(test_dir,dataset,cache=cache_io,symmetric=symm_io,data_augment=False,flip_pp=True)
 
 
-    groundtruth,predicted,scores=classify_data(model,testset,batch_io,device)
+    groundtruth,predicted,scores,testfiles=classify_data(model,testset,batch_io,device)
 
     if flip:
-        _,predicted_flip,scores_flip=classify_data(model,testset_flip,batch_io,device)
+        _,predicted_flip,scores_flip,_=classify_data(model,testset_flip,batch_io,device)
 
     confusion_matrix=np.zeros(( num_classes, num_classes))
 
@@ -93,7 +97,12 @@ def eval(config_file,state_path,device,flip):
     print('Accuracy of argmax combined_predictedions on the test set: {:4f}%'.format(
          (groundtruth == combined_predicted).sum().item() / len(groundtruth) * 100))
 
+    fid=open('output.txt','w')
+    for ind in range(0,len(testfiles)):
+        line=[testfiles[ind]+' ',str(groundtruth[ind])+' ',str(predicted[ind])+' ',str(scores[ind])+'\n']
+        fid.writelines(line)
 
+    fid.close()
 
 if __name__ == "__main__":
 
