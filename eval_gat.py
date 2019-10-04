@@ -72,7 +72,7 @@ def main(args):
     # load pre trained weights
     model.load_state_dict(torch.load(state_path)['model_state_dict'])
     model = model.to(device)
-    model.train()
+    model.eval()
     
     print(model)
 
