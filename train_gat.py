@@ -18,7 +18,7 @@ import torch.nn.functional as F
 import argparse
 import torch.nn as nn
 from data.ShockGraphDataset import *
-from models.gat_sg_model import GAT
+from models.gat_sg_model import Classifier
 from torch.utils.data import DataLoader
 from functools import partial
 
@@ -60,17 +60,18 @@ def main(args):
     # define the model
     heads = ([args.num_heads] * args.num_layers) + [args.num_out_heads]
 
-    model = GAT(args.num_layers,
-                num_feats,
-                args.num_hidden,
-                n_classes,
-                heads,
-                F.elu,
-                args.in_drop,
-                args.attn_drop,
-                args.alpha,
-                args.residual,
-                device)
+    model = Classifier(args.num_layers,
+                       num_feats,
+                       args.num_hidden,
+                       n_classes,
+                       heads,
+                       F.elu,
+                       args.in_drop,
+                       args.attn_drop,
+                       args.alpha,
+                       args.residual,
+                       args.readout,
+                       device)
 
     loss_func = nn.CrossEntropyLoss()
      
@@ -120,9 +121,9 @@ if __name__ == '__main__':
                         help="number of output attention heads")
     parser.add_argument("--num-layers", type=int, default=2,
                         help="number of hidden layers")
-    parser.add_argument("--num-hidden", type=int, default=256,
+    parser.add_argument("--num-hidden", type=int, default=512,
                         help="number of hidden units")
-    parser.add_argument("--residual", action="store_true", default=True,
+    parser.add_argument("--residual", type=bool,default=True,
                         help="use residual connection")
     parser.add_argument("--in-drop", type=float, default=0,
                         help="input feature dropout")
@@ -130,12 +131,14 @@ if __name__ == '__main__':
                         help="attention dropout")
     parser.add_argument("--lr", type=float, default=0.001,
                         help="learning rate")
-    parser.add_argument('--weight-decay', type=float, default=0,
+    parser.add_argument('--weight-decay', type=float, default=5e-4,
                         help="weight decay")
     parser.add_argument('--alpha', type=float, default=0.2,
                         help="the negative slop of leaky relu")
     parser.add_argument('--batch-size', type=int, default=64,
                         help="batch size used for training, validation and test")
+    parser.add_argument("--readout", type=str, default="mean",
+                        help="Readout type: mean/max/sum")   
     args = parser.parse_args()
     print(args)
 
