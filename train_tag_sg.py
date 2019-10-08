@@ -42,9 +42,9 @@ def main(args):
     num_feats = config_file['features_dim']
     batch_io=args.batch_size
     epochs=args.epochs
-
+    bdir=os.path.basename(train_dir)
     
-    prefix=args.ctype+'_sg_model_'+dataset+'_'+str(args.n_layers)+'_'+str(args.n_hidden)+'_'+str(args.hops)+'_'+args.readout
+    prefix=args.ctype+'_sg_model_'+dataset+'_'+bdir+'_'+str(args.n_layers)+'_'+str(args.n_hidden)+'_'+str(args.hops)+'_'+args.readout
 
     print('saving to prefix: ', prefix)
     

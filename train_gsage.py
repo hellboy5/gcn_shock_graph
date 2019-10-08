@@ -42,9 +42,10 @@ def main(args):
     num_feats = config_file['features_dim']
     batch_io=args.batch_size
     epochs=args.epochs
+    bdir=os.path.basename(train_dir)
 
     
-    prefix='gsage_sg_model_'+dataset+'_'+str(args.n_layers)+'_'+str(args.n_hidden)+'_'+args.aggregator+'_'+args.readout
+    prefix='gsage_sg_model_'+dataset+'_'+bdir+'_'+str(args.n_layers)+'_'+str(args.n_hidden)+'_'+args.aggregator+'_'+args.readout
 
     print('saving to prefix: ', prefix)
     

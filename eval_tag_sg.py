@@ -10,6 +10,7 @@ Author's code: https://github.com/PetarV-/GAT
 Pytorch implementation: https://github.com/Diego999/pyGAT
 """
 
+
 import numpy as np
 import torch
 import dgl
@@ -22,6 +23,26 @@ from models.tag_sg_sg_model import Classifier
 from torch.utils.data import DataLoader
 from functools import partial
 
+def classify_data(model,data_loader):
+
+
+    predicted=np.array([],dtype=np.int32)
+    groundtruth=np.array([],np.int32)
+    scores=np.array([])
+    
+    for iter, (bg, label) in enumerate(data_loader):
+        output = model(bg)
+        probs_Y = torch.softmax(output, 1)
+        max_scores,estimate = torch.max(probs_Y, 1)
+        estimate=estimate.view(-1,1)
+
+        predicted=np.append(predicted,estimate.to("cpu").detach().numpy())
+        groundtruth=np.append(groundtruth,label.to("cpu"))
+        scores=np.append(scores,max_scores.to("cpu").detach().numpy())
+
+    return groundtruth,predicted,scores
+
+
 def main(args):
 
     if args.gpu<0:
@@ -31,6 +52,7 @@ def main(args):
 
     # create dataset
     config_file=json.load(open(args.cfg))
+    train_dir=config_file['train_dir']
     test_dir=config_file['test_dir']
     dataset=config_file['dataset']
     cache_io=config_file['cache_io']
@@ -42,14 +64,17 @@ def main(args):
     num_feats = config_file['features_dim']
     batch_io=args.batch_size
     epochs=args.epochs
-    state_path=args.model
-    
+    bdir=os.path.basename(train_dir)
+ 
+    prefix=args.ctype+'_sg_model_'+dataset+'_'+bdir+'_'+str(args.n_layers)+'_'+str(args.n_hidden)+'_'+str(args.hops)+'_'+args.readout
+
     # create train dataset
-    testset=ShockGraphDataset(test_dir,dataset,app=app_io,cache=cache_io,symmetric=symm_io,data_augment=apply_da)
+    testset=ShockGraphDataset(test_dir,dataset,app=app_io,cache=True,symmetric=symm_io,
+                              data_augment=False)
 
     # Use PyTorch's DataLoader and the collate function
     # defined before.
-    data_loader = DataLoader(testset, batch_size=batch_io, shuffle=shuffle_io,
+    data_loader = DataLoader(testset, batch_size=batch_io, shuffle=False,
                              collate_fn=partial(collate,device_name=device))
 
     if args.ctype == 'tagconv':
@@ -57,61 +82,58 @@ def main(args):
     else:
         print('A SGConv Graph Classifier is being trained')
 
-    model = Classifier(num_feats,
-                       args.n_hidden,
-                       n_classes,
-                       args.n_layers,
-                       args.ctype,
-                       args.hops,
-                       args.readout,
-                       F.relu,
-                       args.dropout,
-                       device)
 
-    model.load_state_dict(torch.load(state_path)['model_state_dict'])
-    model.to(device)
-    model.eval()
-
-
-    predicted=torch.LongTensor()
-    groundtruth=torch.LongTensor()
-    confusion_matrix=np.zeros((n_classes,n_classes))
-    for iter, (bg, label) in enumerate(data_loader):
-        output = model(bg)
-        estimate = torch.max(output, 1)[1].view(-1, 1)
-
-        predicted=torch.cat((predicted,estimate.to("cpu")),0)
-        groundtruth=torch.cat((groundtruth,label.to("cpu")),0)
     
-    groundtruth=groundtruth.view(-1)
-    predicted=predicted.view(-1)
 
-    for ind in range(0,groundtruth.shape[0]):
-        if groundtruth[ind]==predicted[ind]:
-            confusion_matrix[groundtruth[ind],groundtruth[ind]]+=1
-        else:
-            confusion_matrix[groundtruth[ind],predicted[ind]]+=1
+    model_files=glob.glob(prefix+'*pth')
+    model_files.sort()
+    
+    for state_path in model_files:
+        print('Using weights: ',state_path)
 
-    confusion_matrix=(confusion_matrix/np.sum(confusion_matrix,1)[:,None])*100
+        model = Classifier(num_feats,
+                           args.n_hidden,
+                           n_classes,
+                           args.n_layers,
+                           args.ctype,
+                           args.hops,
+                           args.readout,
+                           F.relu,
+                           args.dropout,
+                           device)
+    
 
-    print(confusion_matrix)
+        model.load_state_dict(torch.load(state_path)['model_state_dict'])
+        model.to(device)
+        model.eval()
 
-    mAP=np.diagonal(confusion_matrix)
+        groundtruth,predicted,scores=classify_data(model,data_loader)
+        confusion_matrix=np.zeros((n_classes,n_classes))
+        for ind in range(0,groundtruth.shape[0]):
+            if groundtruth[ind]==predicted[ind]:
+                confusion_matrix[groundtruth[ind],groundtruth[ind]]+=1
+            else:
+                confusion_matrix[groundtruth[ind],predicted[ind]]+=1
 
-    print(mAP)
-    print("mAP: ",np.mean(mAP))
-    print(groundtruth)
-    print(predicted)
-    print('Accuracy of argmax predictedions on the test set: {:4f}%'.format(
-         (groundtruth == predicted).sum().item() / len(groundtruth) * 100))
+        confusion_matrix=(confusion_matrix/np.sum(confusion_matrix,1)[:,None])*100
+
+        print(confusion_matrix)
+
+        mAP=np.diagonal(confusion_matrix)
+
+        print(mAP)
+        print("mAP: ",np.mean(mAP))
+        print('Accuracy of argmax predictedions on the test set: {:4f}%'.format(
+            (groundtruth == predicted).sum().item() / len(groundtruth) * 100))
+
+        del model
+        
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='GraphTAGConv and GraphSGConv')
     
     parser.add_argument("--cfg", type=str, default='cfg/stl10_00.json',
                         help="configuration file for the dataset")
-    parser.add_argument("--model", type=str,
-                        help="load pretrained model/weights"),
     parser.add_argument("--gpu", type=int, default=-1,
                         help="which GPU to use. Set -1 to use CPU.")
     parser.add_argument("--epochs", type=int, default=500,
