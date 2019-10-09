@@ -455,7 +455,7 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
           item=node_mapping[key].pt[0]
           feature_matrix[row][0]=item[1]
           feature_matrix[row][1]=item[0]
-
+              
           locations.append(item)
           degree=len(node_mapping[key].theta)
           if  degree >= highest_degree:
@@ -467,26 +467,26 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
 
           #populate theta of node
           start=3
-          for idx in range(0,len(node_mapping[key].theta)):
+          for idx in range(0,min(len(node_mapping[key].theta),3)):
                item=node_mapping[key].theta[rad_list[idx]]
                feature_matrix[row][idx+start]=item/(2.0*pi)
 
           #populate phi of node
           start=6
-          for idx in range(0,len(node_mapping[key].phi)):
+          for idx in range(0,min(len(node_mapping[key].phi),3)):
                item=node_mapping[key].phi[rad_list[idx]]
                feature_matrix[row][idx+start]=item/pi
 
           # populate left_boundary_points of node
           start=9
-          for idx in range(0,len(node_mapping[key].plus_pt)):
+          for idx in range(0,min(len(node_mapping[key].plus_pt),3)):
                item=node_mapping[key].plus_pt[rad_list[idx]]
                feature_matrix[row][0+idx*2+start]=item[1]
                feature_matrix[row][1+idx*2+start]=item[0]
 
           # populate right_boundary_points of node
           start=15
-          for idx in range(0,len(node_mapping[key].minus_pt)):
+          for idx in range(0,min(len(node_mapping[key].minus_pt),3)):
                item=node_mapping[key].minus_pt[rad_list[idx]]
                feature_matrix[row][0+idx*2+start]=item[1]
                feature_matrix[row][1+idx*2+start]=item[0]
@@ -494,13 +494,13 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
           
           #populate plus_theta of node
           start=21
-          for idx in range(0,len(node_mapping[key].plus_theta)):
+          for idx in range(0,min(len(node_mapping[key].plus_theta),3)):
                item=node_mapping[key].plus_theta[rad_list[idx]]
                feature_matrix[row][idx+start]=item/pi
 
           #populate minus_theta of node
           start=24
-          for idx in range(0,len(node_mapping[key].minus_theta)):
+          for idx in range(0,min(len(node_mapping[key].minus_theta),3)):
                item=node_mapping[key].minus_theta[rad_list[idx]]
                feature_matrix[row][idx+start]=item/pi
 
@@ -520,9 +520,9 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
           feature_matrix[row][start]=out
 
           start=28
-          for val in rad_list:
+          for idx in range(0,min(len(rad_list),3)):
                source=str(key)
-               target=str(adj_nodes_mapping[key][val])
+               target=str(adj_nodes_mapping[key][rad_list[idx]])
                pair=(source,target)
                if pair not in curve_stats.keys():
                     pair=(target,source)                        
