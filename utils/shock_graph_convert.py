@@ -29,6 +29,16 @@ CurveProps=namedtuple('CurveProps','SCurve SLength SAngle PCurve PLength PAngle 
 highest_degree=0
 ZERO_TOLERANCE=1E-1
 
+
+def polyArea(x,y):
+    # coordinate shift
+    x_ = x - x.mean()
+    y_ = y - y.mean()
+    # everything else is the same as maxb's code
+    correction = x_[-1] * y_[0] - y_[-1]* x_[0]
+    main_area = np.dot(x_[:-1], y_[1:]) - np.dot(y_[:-1], x_[1:])
+    return 0.5*np.abs(main_area + correction)
+
 def computeDerivatives(curve):
 
      #Compute derivatives
@@ -153,8 +163,8 @@ def computeCurveStats(curve):
 
 def compute_edge_stats():
 
-
-     for key,value in edge_to_samples.items():
+    
+    for key,value in edge_to_samples.items():
           
           first_pt=node_mapping[int(key[0])].pt[0]
           shock_curve=[edge_samples.get(int(value[id])).pt for id in range(1,len(value)-1)]
@@ -180,6 +190,7 @@ def compute_edge_stats():
                minus_totalCurvature = shock_totalCurvature
                minus_angle          = shock_angle
 
+          area=0.0
           if len(plus_curve) and len(minus_curve):
                poly=[]
                poly.append(shock_curve[0])
@@ -188,8 +199,9 @@ def compute_edge_stats():
                minus_curve.reverse()
                poly.extend(minus_curve)
                poly.append(shock_curve[0])
+               totals=zip(*poly)
+               area=polyArea(np.array(totals[0]),np.array(totals[1]))
 
-               
           stats=CurveProps(SCurve=shock_totalCurvature,
                            SLength=shock_length,
                            SAngle=shock_angle,
@@ -199,11 +211,11 @@ def compute_edge_stats():
                            MCurve=minus_totalCurvature,
                            MLength=minus_length,
                            MAngle=minus_angle,
-                           PolyArea=0.0)
+                           PolyArea=area)
           
           curve_stats[key]=stats
 
-
+          
 def getLengthSampNode():
      length=0
      for value in samp_to_node_mapping.itervalues():
@@ -513,19 +525,20 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
                target=str(adj_nodes_mapping[key][val])
                pair=(source,target)
                if pair not in curve_stats.keys():
-                    pair=(target,source)
+                    pair=(target,source)                        
                props=curve_stats[pair]
-
+                   
                feature_matrix[row][0+start]=props.SCurve
                feature_matrix[row][1+start]=props.SLength
                feature_matrix[row][2+start]=props.SAngle
                feature_matrix[row][3+start]=props.PCurve
                feature_matrix[row][4+start]=props.PLength
                feature_matrix[row][5+start]=props.PAngle
-               feature_matrix[row][6+start]=props.PCurve
-               feature_matrix[row][7+start]=props.PLength
-               feature_matrix[row][8+start]=props.PAngle
-
+               feature_matrix[row][6+start]=props.MCurve
+               feature_matrix[row][7+start]=props.MLength
+               feature_matrix[row][8+start]=props.MAngle
+               feature_matrix[row][9+start]=props.PolyArea
+               start=start+10
 
      sorted_locations=sorted(locations,key=itemgetter(0,1),reverse=False)
      ul_corner=sorted_locations[0]
@@ -585,7 +598,7 @@ def convertEsfFile(esf_file,image_file):
      sample_data=12
      node_info=9
      edge_offset=4
-     edge_features=37
+     edge_features=58
      
      _,numb_nodes=lines[7].split(':')
      _,numb_edges=lines[8].split(':')
