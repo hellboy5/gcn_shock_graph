@@ -359,9 +359,75 @@ class ShockGraphDataset(Dataset):
         if absolute:
             F_matrix[:,2] /= self.max_radius*2.0
         else:
-            scale=np.max(F_matrix[:,2])
-            F_matrix[:,2] /= scale
+
+            # scale radius
+            rad_scale=np.max(F_matrix[:,2])
+            F_matrix[:,2] /= rad_scale
+
+            curve_scale=np.max(np.abs(np.concatenate((F_matrix[:,28],F_matrix[:,38],F_matrix[:,48],
+                                                      F_matrix[:,31],F_matrix[:,41],F_matrix[:,51],
+                                                      F_matrix[:,34],F_matrix[:,44],F_matrix[:,54]),axis=0)))
+
+            # scale shock curvature
+            F_matrix[:,28] /= curve_scale
+            F_matrix[:,38] /= curve_scale
+            F_matrix[:,48] /= curve_scale
+
+            # scale plus curvature
+            F_matrix[:,31] /= curve_scale
+            F_matrix[:,41] /= curve_scale
+            F_matrix[:,51] /= curve_scale
+
+            # scale minus curvature
+            F_matrix[:,34] /= curve_scale
+            F_matrix[:,44] /= curve_scale
+            F_matrix[:,54] /= curve_scale
+
+            length_scale=np.max(np.abs(np.concatenate((F_matrix[:,29],F_matrix[:,39],F_matrix[:,49],
+                                                       F_matrix[:,32],F_matrix[:,42],F_matrix[:,52],
+                                                       F_matrix[:,35],F_matrix[:,45],F_matrix[:,55]),axis=0)))
             
+            # scale shock length
+            F_matrix[:,29] /= length_scale
+            F_matrix[:,39] /= length_scale
+            F_matrix[:,49] /= length_scale
+
+            # scale plus length
+            F_matrix[:,32] /= length_scale
+            F_matrix[:,42] /= length_scale
+            F_matrix[:,52] /= length_scale
+
+            #scale minus length
+            F_matrix[:,35] /= length_scale
+            F_matrix[:,45] /= length_scale
+            F_matrix[:,55] /= length_scale
+
+            angle_scale=np.max(np.abs(np.concatenate((F_matrix[:,30],F_matrix[:,40],F_matrix[:,50],
+                                                      F_matrix[:,33],F_matrix[:,43],F_matrix[:,53],
+                                                      F_matrix[:,36],F_matrix[:,46],F_matrix[:,56]),axis=0)))
+
+
+            # scale shock angle
+            F_matrix[:,30] /= angle_scale
+            F_matrix[:,40] /= angle_scale
+            F_matrix[:,50] /= angle_scale
+
+            # scale plus angle
+            F_matrix[:,33] /= angle_scale
+            F_matrix[:,43] /= angle_scale
+            F_matrix[:,53] /= angle_scale
+
+            #scale minus angle
+            F_matrix[:,36] /= angle_scale
+            F_matrix[:,46] /= angle_scale
+            F_matrix[:,56] /= angle_scale
+
+            poly_scale=np.max(np.abs(np.concatenate((F_matrix[:,37],F_matrix[:,47],F_matrix[:,57]),axis=0)))
+
+            F_matrix[:,37] /= poly_scale
+            F_matrix[:,47] /= poly_scale
+            F_matrix[:,57] /= poly_scale
+
         # theta of node
         F_matrix[:,3] /= 2.0*math.pi
         F_matrix[:,4] /= 2.0*math.pi
@@ -526,6 +592,10 @@ class ShockGraphDataset(Dataset):
         adj_data=fid.get('adj_matrix')
         adj_matrix=np.array(adj_data)
 
+        # read in image dims
+        dims=fid.get('dims')
+        dims=np.array(dims)
+        
         # remove normalization put in
         F_matrix_unwrapped,mask=self.__unwrap_data(F_matrix,debug_matrix)
         
@@ -534,7 +604,7 @@ class ShockGraphDataset(Dataset):
         self.width=(F_matrix_unwrapped[1,1]-F_matrix_unwrapped[0,1])
         self.center=np.array([F_matrix_unwrapped[1,1]-self.width/2.0,
                               F_matrix_unwrapped[1,1]-self.width/2.0])
-        self.image_size=self.center[0]*2
+        self.image_size=dims[0]
         self.factor=(self.image_size/2.0)*1.2
 
         # get image
