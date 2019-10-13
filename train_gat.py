@@ -43,9 +43,9 @@ def main(args):
     num_feats = config_file['features_dim']
     batch_io=args.batch_size
     epochs=args.epochs
-
+    bdir=os.path.basename(train_dir)
     
-    prefix='gat_sg_model_'+dataset+'_'+str(args.num_layers)+'_'+str(args.num_hidden)+'_'+str(args.num_heads)+'_'+str(args.num_out_heads)
+    prefix='gat_sg_model_'+dataset+'_'+bdir+'_'+str(args.num_layers)+'_'+str(args.num_hidden)+'_'+str(args.num_heads)+'_'+str(args.num_out_heads)
 
     print('saving to prefix: ', prefix)
     
