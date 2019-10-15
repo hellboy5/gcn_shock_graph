@@ -15,6 +15,7 @@ from torch.utils.data.dataset import Dataset
 from scipy.misc import imread
 from scipy import ndimage
 from operator import itemgetter
+from collections import defaultdict
 
 stl10_map={'airplane':0, 'bird':1,'car':2,'cat':3,'deer':4,'dog':5,'horse':6,'monkey':7,'ship':8,'truck':9}
 
@@ -84,7 +85,7 @@ def fixAngle2PiPi_new_vector(vec):
 
 class ShockGraphDataset(Dataset):
     'Generates data for Keras'
-    def __init__(self,directory,dataset,app=False,cache=True,symmetric=False,data_augment=False,flip_pp=False):
+    def __init__(self,directory,dataset,app=False,cache=True,symmetric=False,data_augment=False,flip_pp=False,grid=8):
         'Initialization'
         
         self.directory = directory
@@ -105,6 +106,8 @@ class ShockGraphDataset(Dataset):
         self.max_radius=1
         self.flip_pp=flip_pp
         self.data_augment=data_augment
+        self.grid=grid
+        self.grid_mapping=[]
         
         if dataset=='cifar100':
             print('Using cifar 100 dataset')
@@ -132,7 +135,7 @@ class ShockGraphDataset(Dataset):
 
         features=self.sg_features[index]
         label=self.sg_labels[index]
-
+        spp_map=self.grid_mapping[index]
         
         if self.cache:
             graph=self.sg_graphs[index]
@@ -148,11 +151,13 @@ class ShockGraphDataset(Dataset):
             else:
                 new_adj=adj_matrix
                 new_F=features[0]
+                spp_map=self.__compute_spp_map(new_F,self.grid)
                 self.__recenter(new_F,absolute=False)
-                
+
             graph=self.__create_graph(new_adj)
             graph.ndata['h']=torch.from_numpy(new_F)
-        
+
+        graph.ndata['x']=torch.from_numpy(spp_map)
         return graph,label
 
     def __preprocess_adj_numpy(self,adj, symmetric=True):
@@ -177,7 +182,25 @@ class ShockGraphDataset(Dataset):
         
     def __gen_file_list(self):
         self.files=glob.glob(self.directory+'/*.h5')
+
+    def __compute_spp_map(self, F_matrix,cells):
+        grid=np.linspace(0,self.image_size,cells+1)
+        grid_cell=np.zeros((F_matrix.shape[0],3),dtype=np.int32)
+        numb_cells=defaultdict(int)
+
+        for idx in range(F_matrix.shape[0]):
+            pts=F_matrix[idx,:]
+            xloc=np.searchsorted(grid,pts[0])-1
+            yloc=np.searchsorted(grid,pts[1])-1
+            grid_cell[idx,:2]=np.array([xloc,yloc])
+
+            numb_cells[(xloc,yloc)]+=1
+
+        for idx in range(grid_cell.shape[0]):
+            grid_cell[idx,2]=numb_cells[grid_cell[idx,0],grid_cell[idx,1]]
         
+        return grid_cell
+
     def __preprocess_graphs(self):
 
         for fid in tqdm(self.files):
@@ -187,11 +210,13 @@ class ShockGraphDataset(Dataset):
             obj=re.split(r'[0-9].*',obj)[0]
             class_name=obj[:obj.rfind('_')]
             label=self.class_mapping[class_name]
-
+            grid_cell=self.__compute_spp_map(features[0],self.grid)
+            
             self.adj_matrices.append(adj_matrix)
             self.sg_labels.append(label)
             self.sg_features.append(features)
-
+            self.grid_mapping.append(grid_cell)
+            
             if self.cache:
                 graph=self.__create_graph(adj_matrix)
                 self.sg_graphs.append(graph)
@@ -323,7 +348,7 @@ class ShockGraphDataset(Dataset):
                                F_matrix[i][2],
                                i))
             
-        sorted_tuples=sorted(key_tuples,key=itemgetter(0,1,3),reverse=False)
+        sorted_tuples=sorted(key_tuples,key=itemgetter(0,1,2),reverse=False)
 
         new_adj_matrix=np.zeros((orig_adj_matrix.shape[0],orig_adj_matrix.shape[0]))
         
