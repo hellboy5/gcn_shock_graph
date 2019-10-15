@@ -28,7 +28,7 @@ def classify_data(model,data_loader):
 
     predicted=np.array([],dtype=np.int32)
     groundtruth=np.array([],np.int32)
-    scores=np.array([])
+    scores=np.empty((0,10))
     
     for iter, (bg, label) in enumerate(data_loader):
         output = model(bg)
@@ -38,7 +38,7 @@ def classify_data(model,data_loader):
 
         predicted=np.append(predicted,estimate.to("cpu").detach().numpy())
         groundtruth=np.append(groundtruth,label.to("cpu"))
-        scores=np.append(scores,max_scores.to("cpu").detach().numpy())
+        scores=np.append(scores,probs_Y.to("cpu").detach().numpy(),axis=0)
 
     return groundtruth,predicted,scores
 
@@ -108,6 +108,7 @@ def main(args):
         model.eval()
 
         groundtruth,predicted,scores=classify_data(model,data_loader)
+        print(scores.shape)
         confusion_matrix=np.zeros((n_classes,n_classes))
         for ind in range(0,groundtruth.shape[0]):
             if groundtruth[ind]==predicted[ind]:
@@ -125,6 +126,21 @@ def main(args):
         print("mAP: ",np.mean(mAP))
         print('Accuracy of argmax predictedions on the test set: {:4f}%'.format(
             (groundtruth == predicted).sum().item() / len(groundtruth) * 100))
+
+        testfiles=testset.files
+        fid=open('output.txt','w')
+        for ind in range(0,len(testfiles)):
+            line=[testfiles[ind]+' ',str(groundtruth[ind])+' ',str(predicted[ind])+' ']
+            for idx in range(scores.shape[1]):
+                val=scores[ind,idx]
+                if idx==scores.shape[1]-1:
+                    line.append(str(val)+'\n')
+                else:
+                    line.append(str(val)+' ')
+            
+            fid.writelines(line)
+
+        fid.close()
 
         del model
         

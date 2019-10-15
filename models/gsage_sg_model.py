@@ -21,8 +21,18 @@ class Classifier(nn.Module):
                                         activation=activation))
 
         # last layer
+        if readout == 'max':
+            self.readout_fcn = conv.MaxPooling()
+        elif readout == 'mean':
+            self.readout_fcn = conv.AvgPooling()
+        elif readout == 'sum':
+            self.readout_fcn = conv.SumPooling()
+        else:
+            self.readout_fcn = conv.GlobalAttentionPooling(nn.Linear(hidden_dim,1),nn.Linear(hidden_dim,hidden_dim*2))
+
         self.classify = nn.Linear(hidden_dim, n_classes)
 
+        
     def forward(self, g):
         # For undirected graphs, in_degree is the same as
         # out_degree.
@@ -31,12 +41,7 @@ class Classifier(nn.Module):
             h = conv(g, h)
         g.ndata['h'] = h
 
-        if self.readout == 'max':
-            hg = dgl.max_nodes(g, 'h')
-        elif self.readout == 'mean':
-            hg = dgl.mean_nodes(g, 'h')
-        else:
-            hg = dgl.sum_nodes(g,'h')
+        hg=self.readout_fcn(g,g.ndata['h'])
             
         return self.classify(hg)
 
