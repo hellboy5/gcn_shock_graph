@@ -190,8 +190,8 @@ class ShockGraphDataset(Dataset):
 
         for idx in range(F_matrix.shape[0]):
             pts=F_matrix[idx,:]
-            xloc=np.searchsorted(grid,pts[0])-1
-            yloc=np.searchsorted(grid,pts[1])-1
+            xloc=max(np.searchsorted(grid,pts[0])-1,0,0)
+            yloc=max(np.searchsorted(grid,pts[1])-1,0,0)
             grid_cell[idx,:2]=np.array([xloc,yloc])
 
             numb_cells[(xloc,yloc)]+=1
@@ -673,13 +673,9 @@ class ShockGraphDataset(Dataset):
             F_combined_pruned[:,26] = fixAngleMPiPi_new_vector(F_combined_pruned[:,5]-F_combined_pruned[:,8]+math.pi/2.0);
 
             F_combined_pruned=F_combined_pruned*mask_pruned
-            
-            new_adj_matrix,new_F_matrix,new_mask=self.__compute_sorted_order(F_combined_pruned,adj_matrix_pruned,mask_pruned)
-            
-        else:
-            new_adj_matrix=adj_matrix_pruned
-            new_F_matrix=F_combined_pruned
-            new_mask=mask_pruned
+
+        # resort to be safe
+        new_adj_matrix,new_F_matrix,new_mask=self.__compute_sorted_order(F_combined_pruned,adj_matrix_pruned,mask_pruned)
             
         return new_adj_matrix,(new_F_matrix,new_mask)
 
