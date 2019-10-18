@@ -147,7 +147,7 @@ class ShockGraphDataset(Dataset):
             adj_matrix=self.adj_matrices[index]        
 
             if self.data_augment:
-                new_adj,new_F=self.__apply_da(adj_matrix,features)
+                new_adj,new_F,spp_map=self.__apply_da(adj_matrix,features)
             else:
                 new_adj=adj_matrix
                 new_F=features[0]
@@ -321,6 +321,9 @@ class ShockGraphDataset(Dataset):
             F_matrix[:,25] = fixAngleMPiPi_new_vector(F_matrix[:,4]-F_matrix[:,7]+math.pi/2.0);
             F_matrix[:,26] = fixAngleMPiPi_new_vector(F_matrix[:,5]-F_matrix[:,8]+math.pi/2.0);
 
+        #scale arclength, curvature
+        F_matrix[:,28:58] *= random_scale
+        
         #mask
         F_matrix=F_matrix*mask
         
@@ -333,9 +336,11 @@ class ShockGraphDataset(Dataset):
         new_center[1]=(self.image_size*random_scale)/2.0
         factor=((self.image_size*random_scale)/2.0)*1.2
 
+        spp_map=self.__compute_spp_map(new_F_matrix,self.grid)
+
         self.__recenter(new_F_matrix,new_center,factor,absolute=False)
         
-        return new_adj_matrix,new_F_matrix
+        return new_adj_matrix,new_F_matrix,spp_map
 
     def __compute_sorted_order(self,F_matrix,orig_adj_matrix,mask):
 
