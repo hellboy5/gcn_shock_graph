@@ -70,7 +70,7 @@ def main(args):
 
     # create train dataset
     testset=ShockGraphDataset(test_dir,dataset,app=app_io,cache=True,symmetric=symm_io,
-                              data_augment=False)
+                              data_augment=False,grid=args.n_grid)
 
     # Use PyTorch's DataLoader and the collate function
     # defined before.
@@ -100,7 +100,8 @@ def main(args):
                            args.readout,
                            F.relu,
                            args.dropout,
-                           device)
+                           device,
+                           args.n_grid)
     
 
         model.load_state_dict(torch.load(state_path)['model_state_dict'])
@@ -172,6 +173,8 @@ if __name__ == '__main__':
                         help="Convolution type: tagconv/sgconv")                                    
     parser.add_argument("--hops", type=int, default=2,
                         help="number of hops")                                    
+    parser.add_argument("--n-grid", type=int, default=8,
+                        help="number of grid cells")                                    
 
     args = parser.parse_args()
     print(args)
