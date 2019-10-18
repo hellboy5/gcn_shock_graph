@@ -182,7 +182,8 @@ class ShockGraphDataset(Dataset):
         
     def __gen_file_list(self):
         self.files=glob.glob(self.directory+'/*.h5')
-
+        self.files.sort()
+        
     def __compute_spp_map(self, F_matrix,cells):
         grid=np.linspace(0,self.image_size,cells+1)
         grid_cell=np.zeros((F_matrix.shape[0],3),dtype=np.int32)
