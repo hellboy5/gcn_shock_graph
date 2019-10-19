@@ -28,16 +28,17 @@ def classify_data(model,data_loader):
     predicted=np.array([],dtype=np.int32)
     groundtruth=np.array([],np.int32)
     scores=np.array([])
-    
-    for iter, (bg, label) in enumerate(data_loader):
-        output = model(bg)
-        probs_Y = torch.softmax(output, 1)
-        max_scores,estimate = torch.max(probs_Y, 1)
-        estimate=estimate.view(-1,1)
 
-        predicted=np.append(predicted,estimate.to("cpu").detach().numpy())
-        groundtruth=np.append(groundtruth,label.to("cpu"))
-        scores=np.append(scores,max_scores.to("cpu").detach().numpy())
+    with torch.no_grad():
+        for iter, (bg, label) in enumerate(data_loader):
+            output = model(bg)
+            probs_Y = torch.softmax(output, 1)
+            max_scores,estimate = torch.max(probs_Y, 1)
+            estimate=estimate.view(-1,1)
+
+            predicted=np.append(predicted,estimate.to("cpu").detach().numpy())
+            groundtruth=np.append(groundtruth,label.to("cpu"))
+            scores=np.append(scores,max_scores.to("cpu").detach().numpy())
 
     return groundtruth,predicted,scores
 
