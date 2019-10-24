@@ -23,12 +23,12 @@ from models.tag_sg_sg_model import Classifier
 from torch.utils.data import DataLoader
 from functools import partial
 
-def classify_data(model,data_loader):
+def classify_data(model,data_loader,n_classes):
 
 
     predicted=np.array([],dtype=np.int32)
     groundtruth=np.array([],np.int32)
-    scores=np.empty((0,10))
+    scores=np.empty((0,n_classes))
     
     for iter, (bg, label) in enumerate(data_loader):
         output = model(bg)
@@ -77,6 +77,15 @@ def main(args):
     data_loader = DataLoader(testset, batch_size=batch_io, shuffle=False,
                              collate_fn=partial(collate,device_name=device))
 
+    if args.flip:
+        testset_flip=ShockGraphDataset(test_dir,dataset,app=app_io,cache=True,
+                                       symmetric=symm_io,data_augment=False,grid=args.n_grid,flip_pp=True)
+        
+        # Use PyTorch's DataLoader and the collate function
+        # defined before.
+        data_loader_flip = DataLoader(testset_flip, batch_size=batch_io, shuffle=False,
+                                      collate_fn=partial(collate,device_name=device))
+
     if args.ctype == 'tagconv':
         print('A TAGConv Graph Classifier is being trained')
     else:
@@ -108,30 +117,41 @@ def main(args):
         model.to(device)
         model.eval()
 
-        groundtruth,predicted,scores=classify_data(model,data_loader)
-        print(scores.shape)
+        groundtruth,predicted,scores=classify_data(model,data_loader,n_classes)
+
+        if args.flip:
+            _,predicted_flip,scores_flip=classify_data(model,data_loader_flip,n_classes)
+
+        combined_predicted=np.copy(predicted)
+                
+        if args.flip:
+            for i in range(groundtruth.shape[0]):
+                if np.max(scores_flip[i,:]) > np.max(scores[i,:]):
+                    print("flipping: ",np.max(scores_flip[i,:]),np.max(scores[i,:]),predicted[i],predicted_flip[i])
+                    combined_predicted[i]=predicted_flip[i]
+
         confusion_matrix=np.zeros((n_classes,n_classes))
         for ind in range(0,groundtruth.shape[0]):
-            if groundtruth[ind]==predicted[ind]:
+            if groundtruth[ind]==combined_predicted[ind]:
                 confusion_matrix[groundtruth[ind],groundtruth[ind]]+=1
             else:
-                confusion_matrix[groundtruth[ind],predicted[ind]]+=1
+                confusion_matrix[groundtruth[ind],combined_predicted[ind]]+=1
 
         confusion_matrix=(confusion_matrix/np.sum(confusion_matrix,1)[:,None])*100
 
-        print(confusion_matrix)
+        #print(confusion_matrix)
 
         mAP=np.diagonal(confusion_matrix)
 
         print(mAP)
         print("mAP: ",np.mean(mAP))
-        print('Accuracy of argmax predictedions on the test set: {:4f}%'.format(
-            (groundtruth == predicted).sum().item() / len(groundtruth) * 100))
+        print('Accuracy of argmax combined_predictedions on the test set: {:4f}%'.format(
+            (groundtruth == combined_predicted).sum().item() / len(groundtruth) * 100))
 
         testfiles=testset.files
         fid=open('output.txt','w')
         for ind in range(0,len(testfiles)):
-            line=[testfiles[ind]+' ',str(groundtruth[ind])+' ',str(predicted[ind])+' ']
+            line=[testfiles[ind]+' ',str(groundtruth[ind])+' ',str(combined_predicted[ind])+' ']
             for idx in range(scores.shape[1]):
                 val=scores[ind,idx]
                 if idx==scores.shape[1]-1:
@@ -175,6 +195,8 @@ if __name__ == '__main__':
                         help="number of hops")                                    
     parser.add_argument("--n-grid", type=int, default=8,
                         help="number of grid cells")                                    
+    parser.add_argument("--flip", type=bool, default=False,
+                        help="flip data")                                    
 
     args = parser.parse_args()
     print(args)
