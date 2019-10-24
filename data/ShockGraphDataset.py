@@ -249,7 +249,7 @@ class ShockGraphDataset(Dataset):
 
     def __get_pixel_values(self,F_matrix,color_space):
 
-        pixel_values=np.zeros((F_matrix.shape[0],12),dtype=np.float32)
+        pixel_values=np.zeros((F_matrix.shape[0],21),dtype=np.float32)
 
         zero_set=np.array([0.0,0.0])
         zcoord=np.array([0,1,2])
@@ -264,18 +264,33 @@ class ShockGraphDataset(Dataset):
             bp1_ycoord=np.repeat(F_matrix[f,10],3)
             bp1_cs=ndimage.map_coordinates(color_space,[bp1_xcoord,bp1_ycoord,zcoord])
             pixel_values[f,3:6]=bp1_cs
-            
+
+            bp1_xcoord=np.repeat(F_matrix[f,15],3)
+            bp1_ycoord=np.repeat(F_matrix[f,16],3)
+            bp1_cs=ndimage.map_coordinates(color_space,[bp1_xcoord,bp1_ycoord,zcoord])
+            pixel_values[f,12:15]=bp1_cs
+
             if np.array_equal(F_matrix[f,11:13],zero_set)==False:
                 bp2_xcoord=np.repeat(F_matrix[f,11],3)
                 bp2_ycoord=np.repeat(F_matrix[f,12],3)
                 bp2_cs=ndimage.map_coordinates(color_space,[bp2_xcoord,bp2_ycoord,zcoord])
                 pixel_values[f,6:9]=bp2_cs
-                
+
+                bp2_xcoord=np.repeat(F_matrix[f,17],3)
+                bp2_ycoord=np.repeat(F_matrix[f,18],3)
+                bp2_cs=ndimage.map_coordinates(color_space,[bp2_xcoord,bp2_ycoord,zcoord])
+                pixel_values[f,15:18]=bp2_cs
+
             if np.array_equal(F_matrix[f,13:15],zero_set)==False:
                 bp3_xcoord=np.repeat(F_matrix[f,13],3)
                 bp3_ycoord=np.repeat(F_matrix[f,14],3)
                 bp3_cs=ndimage.map_coordinates(color_space,[bp3_xcoord,bp3_ycoord,zcoord])
                 pixel_values[f,9:12]=bp3_cs
+
+                bp3_xcoord=np.repeat(F_matrix[f,19],3)
+                bp3_ycoord=np.repeat(F_matrix[f,20],3)
+                bp3_cs=ndimage.map_coordinates(color_space,[bp3_xcoord,bp3_ycoord,zcoord])
+                pixel_values[f,18:21]=bp3_cs
 
         return pixel_values/255.0
             
