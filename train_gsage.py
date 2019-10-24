@@ -91,7 +91,7 @@ def main(args):
         epoch_losses.append(epoch_loss)
         print('Epoch {}, loss {:.6f}'.format(epoch, epoch_loss))
 
-        if (epoch+1) % 50 == 0:
+        if (epoch+1) % 25 == 0:
             path=prefix+'_epoch_'+str(epoch+1).zfill(3)+'.pth'
             torch.save({
                 'epoch': epoch,
