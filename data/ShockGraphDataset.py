@@ -16,6 +16,7 @@ from scipy.misc import imread
 from scipy import ndimage
 from operator import itemgetter
 from collections import defaultdict
+from scipy.spatial.distance import cdist
 
 stl10_map={'airplane':0, 'bird':1,'car':2,'cat':3,'deer':4,'dog':5,'horse':6,'monkey':7,'ship':8,'truck':9}
 
@@ -140,7 +141,7 @@ class ShockGraphDataset(Dataset):
         if self.cache:
             graph=self.sg_graphs[index]
             F_matrix=np.copy(features[0])
-            self.__recenter(F_matrix,absolute=False)
+            self.__recenter(F_matrix,absolute=True)
             graph.ndata['h']=torch.from_numpy(F_matrix)
             
         else:        
@@ -152,7 +153,7 @@ class ShockGraphDataset(Dataset):
                 new_adj=adj_matrix
                 new_F=features[0]
                 spp_map=self.__compute_spp_map(new_F,self.grid)
-                self.__recenter(new_F,absolute=False)
+                self.__recenter(new_F,absolute=True)
 
             graph=self.__create_graph(new_adj)
             graph.ndata['h']=torch.from_numpy(new_F)
@@ -353,7 +354,7 @@ class ShockGraphDataset(Dataset):
 
         spp_map=self.__compute_spp_map(new_F_matrix,self.grid)
 
-        self.__recenter(new_F_matrix,new_center,factor,absolute=False)
+        self.__recenter(new_F_matrix,new_center,factor,absolute=True)
         
         return new_adj_matrix,new_F_matrix,spp_map
 
@@ -370,7 +371,6 @@ class ShockGraphDataset(Dataset):
                                i))
             
         sorted_tuples=sorted(key_tuples,key=itemgetter(0,1,2),reverse=False)
-
         new_adj_matrix=np.zeros((orig_adj_matrix.shape[0],orig_adj_matrix.shape[0]))
         
         new_list=[]
@@ -403,7 +403,66 @@ class ShockGraphDataset(Dataset):
             
         # radius of shock point
         if absolute:
-            F_matrix[:,2] /= self.max_radius*2.0
+
+            rad_scale=68.2340
+            angle_scale=713.8326
+            length_scale=116.8454
+            curve_scale=10.6709
+            poly_scale=8272.887700675255
+
+            # scale shock radius
+            F_matrix[:,2] /= rad_scale
+
+            # scale shock curvature
+            F_matrix[:,28] /= curve_scale
+            F_matrix[:,38] /= curve_scale
+            F_matrix[:,48] /= curve_scale
+
+            # scale plus curvature
+            F_matrix[:,31] /= curve_scale
+            F_matrix[:,41] /= curve_scale
+            F_matrix[:,51] /= curve_scale
+
+            # scale minus curvature
+            F_matrix[:,34] /= curve_scale
+            F_matrix[:,44] /= curve_scale
+            F_matrix[:,54] /= curve_scale
+
+            # scale shock length
+            F_matrix[:,29] /= length_scale
+            F_matrix[:,39] /= length_scale
+            F_matrix[:,49] /= length_scale
+
+            # scale plus length
+            F_matrix[:,32] /= length_scale
+            F_matrix[:,42] /= length_scale
+            F_matrix[:,52] /= length_scale
+
+            # scale minus length
+            F_matrix[:,35] /= length_scale
+            F_matrix[:,45] /= length_scale
+            F_matrix[:,55] /= length_scale
+
+            # scale shock angle
+            F_matrix[:,30] /= angle_scale
+            F_matrix[:,40] /= angle_scale
+            F_matrix[:,50] /= angle_scale
+
+            # scale plus angle
+            F_matrix[:,33] /= angle_scale
+            F_matrix[:,43] /= angle_scale
+            F_matrix[:,53] /= angle_scale
+
+            # scale minus angle
+            F_matrix[:,36] /= angle_scale
+            F_matrix[:,46] /= angle_scale
+            F_matrix[:,56] /= angle_scale
+
+            # scale poly scale
+            F_matrix[:,37] /= poly_scale
+            F_matrix[:,47] /= poly_scale
+            F_matrix[:,57] /= poly_scale
+
         else:
 
             # scale radius
@@ -648,9 +707,8 @@ class ShockGraphDataset(Dataset):
         # center of bounding box
         # will be a constant across
         self.width=(F_matrix_unwrapped[1,1]-F_matrix_unwrapped[0,1])
-        self.center=np.array([F_matrix_unwrapped[1,1]-self.width/2.0,
-                              F_matrix_unwrapped[1,1]-self.width/2.0])
         self.image_size=dims[0]
+        self.center=np.array([self.image_size/2.0,self.image_size/2.0])
         self.factor=(self.image_size/2.0)*1.2
 
         # get image
