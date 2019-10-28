@@ -64,8 +64,9 @@ def main(args):
                        args.n_layers,
                        args.aggregator,
                        args.readout,
-                       F.relu,
+                       None,
                        args.dropout,
+                       args.n_grid,
                        device)
 
     loss_func = nn.CrossEntropyLoss()
@@ -126,7 +127,10 @@ if __name__ == '__main__':
     parser.add_argument("--aggregator", type=str, default="gcn",
                         help="Aggregator type: mean/gcn/pool/lstm")
     parser.add_argument("--readout", type=str, default="mean",
-                        help="Readout type: mean/max/sum")                                    
+                        help="Readout type: mean/max/sum")
+    parser.add_argument("--n-grid", type=int, default=8,
+                        help="number of grid cells")                                    
+
     args = parser.parse_args()
     print(args)
 

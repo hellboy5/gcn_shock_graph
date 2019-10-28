@@ -68,10 +68,10 @@ def main(args):
                        args.ctype,
                        args.hops,
                        args.readout,
-                       F.relu,
+                       None,
                        args.dropout,
-                       device,
-                       args.n_grid)
+                       args.n_grid,
+                       device)
 
     loss_func = nn.CrossEntropyLoss()
      
