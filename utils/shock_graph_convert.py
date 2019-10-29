@@ -140,7 +140,7 @@ def computeAngles(curve):
           angle.append(theta);
           px=cx
           py=cy
-
+     
      if len(curve) >2 :
           angle[0]=angle[1];
           for i in range(1,len(angle)):
@@ -202,6 +202,13 @@ def compute_edge_stats():
                totals=zip(*poly)
                area=polyArea(np.array(totals[0]),np.array(totals[1]))
 
+
+          if len(plus_curve) and len(minus_curve):
+              if plus_curve[0][0] > minus_curve[0][0]:
+                  plus_totalCurvature,minus_totalCurvature=minus_totalCurvature,plus_totalCurvature
+                  plus_angle,minus_angle=minus_angle,plus_angle
+                  plus_length,minus_length=minus_length,plus_length
+              
           stats=CurveProps(SCurve=shock_totalCurvature,
                            SLength=shock_length,
                            SAngle=shock_angle,
@@ -310,6 +317,9 @@ def read_node_samples(sample_line,lines,sample_data,node_info):
           left_bnd_tangent  = fixAngleMPiPi_new(theta+phi-pi/2.0)
           right_bnd_tangent = fixAngleMPiPi_new(theta-phi+pi/2.0)
 
+          if left_bnd_pt[0] > right_bnd_pt[0]:
+              left_bnd_pt,right_bnd_pt = right_bnd_pt,left_bnd_pt
+              left_bnd_tangent,right_bnd_tangent = right_bnd_tangent,left_bnd_tangent
 
           #get affected node data
           ids=samp_to_node_mapping[id]
@@ -412,7 +422,7 @@ def compute_sorted_order():
                              node_mapping[keys].radius[0],
                              keys))
 
-     sorted_tuples=sorted(key_tuples,key=itemgetter(1,0,3),reverse=False)
+     sorted_tuples=sorted(key_tuples,key=itemgetter(0,1,2),reverse=False)
 
      for idx in range(0,len(sorted_tuples)):
           key=sorted_tuples[idx][3]
@@ -448,7 +458,7 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
 
           order_list=[]
           for value in adj_nodes_mapping[key]:
-               order_list.append(node_mapping[value].radius[0])
+               order_list.append(node_mapping[value].pt[0][0])
           rad_list=np.argsort(order_list)
 
           # populate points of node location
@@ -490,8 +500,7 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
                item=node_mapping[key].minus_pt[rad_list[idx]]
                feature_matrix[row][0+idx*2+start]=item[1]
                feature_matrix[row][1+idx*2+start]=item[0]
-          
-          
+
           #populate plus_theta of node
           start=21
           for idx in range(0,min(len(node_mapping[key].plus_theta),3)):
