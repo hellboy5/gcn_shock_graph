@@ -2,30 +2,34 @@ import dgl
 import torch
 import torch.nn as nn
 import dgl.nn.pytorch as conv
+import torch.nn.functional as F
 from .spp_pooling import SppPooling
 
 class Classifier(nn.Module):
     def __init__(self, in_dim, hidden_dim, n_classes,hidden_layers,ctype,hops,readout,
-                 activation_func,dropout,device,grid=8):
+                 activation_func,dropout,grid,device):
         super(Classifier, self).__init__()
-        self.device  = device
-        self.readout = readout
-        self.layers  = nn.ModuleList()
-        self.grid    = grid
-        
+        self.device      = device
+        self.readout     = readout
+        self.layers      = nn.ModuleList()
+        self.batch_norms = nn.ModuleList() 
+        self.grid        = grid
+
         # input layer
         if ctype == 'tagconv':
             self.layers.append(conv.TAGConv(in_dim,hidden_dim,hops,activation=activation_func))
         else:
             self.layers.append(conv.SGConv(in_dim,hidden_dim,hops,cached=False,norm=activation_func))
-            
+        self.batch_norms.append(nn.BatchNorm1d(hidden_dim))
+                
         # hidden layers
         for k in range(0,hidden_layers):
             if ctype == 'tagconv':
                 self.layers.append(conv.TAGConv(hidden_dim,hidden_dim,hops,activation=activation_func))
             else:
                 self.layers.append(conv.SGConv(hidden_dim,hidden_dim,hops,cached=False,norm=activation_func))
-
+            self.batch_norms.append(nn.BatchNorm1d(hidden_dim))
+            
         # dropout layer
         self.dropout=nn.Dropout(p=dropout)
         
@@ -63,10 +67,11 @@ class Classifier(nn.Module):
         # out_degree.
         h=g.ndata['h'].to(self.device)
 
-        for i, conv in enumerate(self.layers):
-            if i != 0:
+        for idx in range(len(self.layers)):
+            if idx != 0:
                 h = self.dropout(h)
-            h = conv(g, h)
+
+            h = self.layers[idx](g,h)
             
         g.ndata['h'] = h
 
