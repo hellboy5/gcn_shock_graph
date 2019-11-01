@@ -187,20 +187,29 @@ class ShockGraphDataset(Dataset):
         
     def __compute_spp_map(self, F_matrix,cells):
         grid=np.linspace(0,self.image_size,cells+1)
-        grid_cell=np.zeros((F_matrix.shape[0],3),dtype=np.int32)
-        numb_cells=defaultdict(int)
-
+        grid_map=defaultdict(list)
+        
         for idx in range(F_matrix.shape[0]):
             pts=F_matrix[idx,:]
             xloc=max(np.searchsorted(grid,pts[0])-1,0,0)
             yloc=max(np.searchsorted(grid,pts[1])-1,0,0)
-            grid_cell[idx,:2]=np.array([xloc,yloc])
+            grid_map[(xloc,yloc)].append(idx)
 
-            numb_cells[(xloc,yloc)]+=1
+        grid_cell=np.ones((F_matrix.shape[0],100),dtype=np.int32)*-1
 
-        for idx in range(grid_cell.shape[0]):
-            grid_cell[idx,2]=numb_cells[grid_cell[idx,0],grid_cell[idx,1]]
-        
+        idx=0
+        for key,value in grid_map.items():
+            grid_cell[idx,0]=key[0]
+            grid_cell[idx,1]=key[1]
+            grid_cell[idx,2]=len(value)
+            
+            col=3
+            for ss in value:
+                grid_cell[idx,col]=ss
+                col+=1
+
+            idx+=1
+
         return grid_cell
 
     def __preprocess_graphs(self):

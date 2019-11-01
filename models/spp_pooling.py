@@ -35,18 +35,25 @@ class SppPooling(nn.Module):
             n_graphs=graph.batch_size
             nodes_per_graph=graph.batch_num_nodes
             output=torch.zeros([n_graphs,self.grid,self.grid,self.input_dim]).to(features.device)
-
             start=0
             stop=start+nodes_per_graph[0]
-            
+
             for xx in range(n_graphs):
-                
+
+                F=features[start:stop,:]
                 for idx in range(start,stop):
-                    output[xx,xy[idx,0],xy[idx,1],:]+=(features[idx,:]/np.float64(xy[idx,2]))
+                    if xy[idx,0]==-1:
+                        break
+                    
+                    numb_entries=xy[idx,2]
+                    indices=xy[idx,3:(3+numb_entries)].type(torch.LongTensor)
+                    pool_value=torch.mean(F[indices,:],0)
+                    output[xx,xy[idx,0],xy[idx,1],:]=pool_value
 
                 if xx < n_graphs-1:
                     start=start+nodes_per_graph[xx]
                     stop=start+nodes_per_graph[xx+1]
-                    
+
+
             return output
 
