@@ -195,7 +195,7 @@ class ShockGraphDataset(Dataset):
             yloc=max(np.searchsorted(grid,pts[1])-1,0,0)
             grid_map[(xloc,yloc)].append(idx)
 
-        grid_cell=np.ones((F_matrix.shape[0],100),dtype=np.int32)*-1
+        grid_cell=np.ones((F_matrix.shape[0],250),dtype=np.int32)*-1
 
         idx=0
         for key,value in grid_map.items():
