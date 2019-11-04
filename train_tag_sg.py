@@ -46,6 +46,10 @@ def main(args):
     
     prefix=args.ctype+'_sg_model_'+dataset+'_'+bdir+'_'+str(args.n_layers)+'_'+str(args.n_hidden)+'_'+str(args.hops)+'_'+args.readout
 
+    if args.readout == 'spp':
+        extra='_'+str(args.n_grid)
+        prefix+=extra
+
     print('saving to prefix: ', prefix)
     
     # create train dataset
@@ -68,7 +72,7 @@ def main(args):
                        args.ctype,
                        args.hops,
                        args.readout,
-                       None,
+                       F.relu,
                        args.dropout,
                        args.n_grid,
                        device)

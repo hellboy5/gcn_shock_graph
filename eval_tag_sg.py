@@ -68,6 +68,10 @@ def main(args):
  
     prefix=args.ctype+'_sg_model_'+dataset+'_'+bdir+'_'+str(args.n_layers)+'_'+str(args.n_hidden)+'_'+str(args.hops)+'_'+args.readout
 
+    if args.readout == 'spp':
+        extra='_'+str(args.n_grid)
+        prefix+=extra
+
     # create train dataset
     testset=ShockGraphDataset(test_dir,dataset,app=app_io,cache=True,symmetric=symm_io,
                               data_augment=False,grid=args.n_grid)
@@ -109,8 +113,8 @@ def main(args):
                            args.readout,
                            F.relu,
                            args.dropout,
-                           device,
-                           args.n_grid)
+                           args.n_grid,
+                           device)
     
 
         model.load_state_dict(torch.load(state_path)['model_state_dict'])
