@@ -9,10 +9,11 @@ class SppPooling(nn.Module):
     .. math::
         r^{(i)} = \sum_{k=1}^{N_i} x^{(i)}_k
     """
-    def __init__(self,input_dim,grid):
+    def __init__(self,input_dim,grid,readout='max'):
         super(SppPooling, self).__init__()
         self.input_dim=input_dim
         self.grid=grid
+        self.readout=readout
 
         
     def forward(self, graph, features, xy):
@@ -47,7 +48,11 @@ class SppPooling(nn.Module):
                     
                     numb_entries=xy[idx,2]
                     indices=xy[idx,3:(3+numb_entries)].type(torch.LongTensor)
-                    pool_value=torch.mean(F[indices,:],0)
+                    if self.readout=='max':
+                        pool_value=torch.max(F[indices,:],0)[0]
+                    else:
+                        pool_value=torch.mean(F[indices,:],0)
+
                     output[xx,xy[idx,0],xy[idx,1],:]=pool_value
 
                 if xx < n_graphs-1:
