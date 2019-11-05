@@ -62,7 +62,6 @@ def main(args):
     num_feats = config_file['features_dim']
     batch_io=args.batch_size
     epochs=args.epochs
-    state_path=args.model
     bdir=os.path.basename(train_dir)
 
     prefix='gsage_sg_model_'+dataset+'_'+bdir+'_'+str(args.n_layers)+'_'+str(args.n_hidden)+'_'+args.aggregator+'_'+args.readout
@@ -89,8 +88,9 @@ def main(args):
                            args.n_layers,
                            args.aggregator,
                            args.readout,
-                           F.relu,
+                           None,
                            args.dropout,
+                           args.n_grid,
                            device)    
 
         model.load_state_dict(torch.load(state_path)['model_state_dict'])
@@ -123,8 +123,6 @@ if __name__ == '__main__':
     
     parser.add_argument("--cfg", type=str, default='cfg/stl10_00.json',
                         help="configuration file for the dataset")
-    parser.add_argument("--model", type=str,
-                        help="load pretrained model/weights"),
     parser.add_argument("--gpu", type=int, default=-1,
                         help="which GPU to use. Set -1 to use CPU.")
     parser.add_argument("--epochs", type=int, default=500,
@@ -144,7 +142,10 @@ if __name__ == '__main__':
     parser.add_argument("--aggregator", type=str, default="gcn",
                         help="Aggregator type: mean/gcn/pool/lstm")
     parser.add_argument("--readout", type=str, default="mean",
-                        help="Readout type: mean/max/sum")                                    
+                        help="Readout type: mean/max/sum")
+    parser.add_argument("--n-grid", type=int, default=8,
+                        help="number of grid cells")
+    
     args = parser.parse_args()
     print(args)
 
