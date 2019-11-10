@@ -5,6 +5,9 @@ import scipy.misc
 import numpy as np
 import h5py
 import math
+import networkx as nx
+import matplotlib.pyplot as plt
+import copy
 
 from collections import defaultdict
 from collections import namedtuple
@@ -29,6 +32,113 @@ CurveProps=namedtuple('CurveProps','SCurve SLength SAngle PCurve PLength PAngle 
 highest_degree=0
 ZERO_TOLERANCE=1E-1
 
+
+def check_paths(G,paths):
+
+    nodes=G.nodes
+    hist=defaultdict(int)
+
+    for val in paths.values():
+        for vertices in val:
+            hist[vertices]+=1
+
+    flag=True
+    for nn in list(G.nodes):
+        truth=G.degree[nn]
+        if truth==2:
+            truth-=1
+
+        if nn not in hist:
+            print('Nodes not visited')
+            flag=False
+            break
+        
+        counts=hist[nn]
+        if counts != truth:
+            print('Nodes not visited enough or too many times')
+            flag=False
+            break
+
+
+    return flag
+    
+
+def get_paths(A):
+    
+    G=nx.from_numpy_matrix(A)
+    degree_three_one_nodes=[]
+    visited=set()
+    for ids in list(G.nodes):
+        if G.degree[ids] >= 3 or G.degree[ids]==1:
+            degree_three_one_nodes.append(ids)
+            
+    all_paths=dict()
+
+
+
+    
+    for idx in degree_three_one_nodes:
+
+        visited.add(idx)
+        for vx in G.neighbors(idx):
+            path=[]
+            path.append(idx)
+
+            if vx not in visited:
+                path.append(vx)
+                pairs,visited=path_dfs(G,path,visited)
+                all_paths[pairs[0]]=pairs[1]
+
+    return G,all_paths
+
+def path_dfs(G,path,visited):
+
+    traversal=[path[-1]]
+    
+    while len(traversal):
+        node=traversal.pop(-1)
+
+        if G.degree[node]>=3 or G.degree[node]==1:
+            break
+        
+        visited.add(node)
+        neighbors=G.neighbors(node)
+        for val in neighbors:
+            if val not in visited:
+                path.append(val)
+                traversal.append(val)
+
+    return (str(sorted(path)),path),visited
+        
+def vis(G,I,positions,all_paths):
+
+    pos_flipped=np.fliplr(positions)
+    fig, ax = plt.subplots()
+    plt.imshow(I)
+    nx.draw(G,pos=pos_flipped,node_size=20)
+
+    #create pos vector
+    pos_vector=dict()
+    for x in range(positions.shape[0]):
+        pos_vector[x]=pos_flipped[x,:]
+        
+    for path in all_paths.values():
+        a1=copy.deepcopy(path)
+        a2=copy.deepcopy(path)
+        a1.pop(-1)
+        a2.pop(0)
+        elist=zip(a1,a2)
+        colors=np.random.rand(3)
+        colors=np.tile(colors,(len(elist),1))
+        
+        nx.draw_networkx_edges(G,
+                               pos=pos_vector,
+                               edgelist=elist,
+                               edge_color=colors,width=10)
+        
+    
+    plt.show()
+    
 
 def polyArea(x,y):
     # coordinate shift
@@ -422,7 +532,7 @@ def compute_sorted_order():
                              node_mapping[keys].radius[0],
                              keys))
 
-     sorted_tuples=sorted(key_tuples,key=itemgetter(0,1,2),reverse=False)
+     sorted_tuples=sorted(key_tuples,key=itemgetter(1,0,2),reverse=False)
 
      for idx in range(0,len(sorted_tuples)):
           key=sorted_tuples[idx][3]
@@ -549,49 +659,7 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
                feature_matrix[row][9+start]=props.PolyArea
                start=start+10
 
-     sorted_locations=sorted(locations,key=itemgetter(0,1),reverse=False)
-     ul_corner=sorted_locations[0]
-     lr_corner=sorted_locations[-1]
-     center=((ul_corner[0]+lr_corner[0])/2.0,(ul_corner[1]+lr_corner[1])/2.0)
-     high_order_nodes=np.array(highest_degree_nodes)
-     temp=np.zeros((1,2))
-     temp[0][0]=center[0]
-     temp[0][1]=center[1]
-     distances=np.squeeze(cdist(high_order_nodes,temp))
-     reference_ind=np.argsort(distances)
-     reference_pt=high_order_nodes[reference_ind[0]]
-
-     feature_matrix[:,:2]-=reference_pt
-
-     zero_set=np.array([0.0,0.0])
-     
-     for row_idx in range(0,feature_matrix.shape[0]):
-          feature_matrix[row_idx,9:11]-=reference_pt
-          feature_matrix[row_idx,15:17]-=reference_pt
-
-          if np.array_equal(feature_matrix[row_idx,11:13],zero_set)==False:
-               feature_matrix[row_idx,11:13]-=reference_pt
-               feature_matrix[row_idx,17:19]-=reference_pt
-
-          if np.array_equal(feature_matrix[row_idx,13:15],zero_set)==False:
-               feature_matrix[row_idx,13:15]-=reference_pt
-               feature_matrix[row_idx,19:21]-=reference_pt
-
-     max_offsets=np.amax(np.abs(feature_matrix[:,:2]),axis=0)
-     max_radius=np.amax(feature_matrix,axis=0)[2]
-
-     feature_matrix[:,:2] /= max_offsets
-     feature_matrix[:,2] /= max_radius
-     feature_matrix[:,9:11] /= max_offsets
-     feature_matrix[:,15:17] /= max_offsets
-     feature_matrix[:,11:13] /= max_offsets
-     feature_matrix[:,17:19] /= max_offsets
-     feature_matrix[:,13:15] /= max_offsets
-     feature_matrix[:,19:21] /= max_offsets
-
-     debug=np.concatenate((reference_pt,max_offsets,np.array([max_radius])),
-                          axis=0)
-     return adj_matrix,feature_matrix,debug
+     return adj_matrix,feature_matrix
     
 def convertEsfFile(esf_file,image_file):
 
@@ -626,9 +694,18 @@ def convertEsfFile(esf_file,image_file):
                        numb_edge_samples,numb_degen_edges,node_info)
      compute_edge_stats()
      compute_sorted_order()
-     adj_matrix,feature_matrix,ref_point=\
-     compute_adj_feature_matrix(edge_features,NI,NJ)
+     adj_matrix,feature_matrix=compute_adj_feature_matrix(edge_features,NI,NJ)
 
+     G,paths=get_paths(adj_matrix)
+     flag=check_paths(G,paths)
+     
+     if flag:
+         print('All paths check out!! good!')
+     else:
+         print('ERRORPATH: not all paths checked')
+
+     #vis(G,I,feature_matrix[:,:2],paths)
+     
      nodes=adj_matrix.shape[0]
      
      fname_graph=os.path.splitext(esf_file)[0]+'-n'+str(nodes)+'-shock_graph.h5'
@@ -636,7 +713,6 @@ def convertEsfFile(esf_file,image_file):
 
      hf.create_dataset('feature',data=feature_matrix)
      hf.create_dataset('adj_matrix',data=adj_matrix)
-     hf.create_dataset('debug',data=ref_point)
      hf.create_dataset('dims',data=dims)
      hf.close()
 
