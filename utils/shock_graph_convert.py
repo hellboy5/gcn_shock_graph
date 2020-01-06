@@ -19,6 +19,7 @@ from operator import itemgetter
 from scipy.spatial.distance import cdist
 
 node_order=dict()
+order_mapping=dict()
 node_mapping=dict()
 edge_samples=dict()
 edge_to_samples=dict()
@@ -26,12 +27,98 @@ curve_stats=dict()
 samp_to_node_mapping=defaultdict(list)
 edge_mapping=defaultdict(list)
 adj_nodes_mapping=defaultdict(list)
-Sample=namedtuple('Sample','pt type radius theta phi plus_pt \
+Sample=namedtuple('Sample','id pt type radius theta speed phi plus_pt \
 minus_pt plus_theta minus_theta')
 CurveProps=namedtuple('CurveProps','SCurve SLength SAngle PCurve PLength PAngle MCurve MLength MAngle PolyArea')
 highest_degree=0
 ZERO_TOLERANCE=1E-1
 
+
+def translate_points(pt,v,time):
+
+    trans_points=np.zeros((pt.shape[0],2),dtype=np.float64)
+    x=pt[:,0]+time*np.cos(v)
+    y=pt[:,1]+time*np.sin(v)
+    trans_points[:,0]=x
+    trans_points[:,1]=y
+
+    return trans_points
+
+def angleDiff_new(a1,a2):
+
+    a1=fixAngleMPiPi_new(a1)
+    a2=fixAngleMPiPi_new(a2)
+
+    if a1 > a2:
+        if (a1-a2) > pi:
+            return a1-a2-2*pi
+        else:
+            return a1-a2
+    elif a2 > a1:
+        if (a1-a2) < -pi:
+            return a1-a2+2*pi
+        else:
+            return a1-a2
+
+    return 0.0
+
+
+# This function takes a sampled shock curve and interpolates it.
+def interpolate(sh_pt,time,theta,phi,interpolate_ds=1.0):
+
+    # we need to interpolate along the length of the shock curve
+    # to fill the gaps between the shock samples
+  
+    # add the very first sample
+    sh_pt_=[]
+    time_=[]
+    theta_=[]
+    phi_=[]
+
+    sh_pt_.append(sh_pt[0])
+    time_.append(time[0]);
+    theta_.append(theta[0]);
+    phi_.append(phi[0]);
+
+
+    for i in range(1,len(sh_pt)):
+
+        dphi = angleDiff_new(phi[i],phi[i-1])
+        dtheta = angleDiff_new(theta[i], theta[i-1])
+        dx = sh_pt[i][0]-sh_pt[i-1][0]
+        dy = sh_pt[i][1]-sh_pt[i-1][1]
+        ds = math.sqrt(dx*dx + dy*dy)
+        dt = time[i]-time[i-1]
+        apprxds = ds+(abs(dtheta)+abs(dphi))*(time[i-1]+time[i])/2.0
+
+        # (this is Amir's working interpolation as well.)
+        if apprxds>interpolate_ds:
+
+            num = int(apprxds/interpolate_ds)
+
+            for j in range(1,num):
+
+                ratio = float(j)/float(num)
+
+                p_int=(sh_pt[i-1][0]+ratio*dx,sh_pt[i-1][1]+ratio*dy)
+                time_int = time[i-1] + ratio*dt
+                phi_int = phi[i-1] + ratio*dphi
+                theta_int = theta[i-1] + ratio*dtheta
+
+                sh_pt_.append(p_int)
+                time_.append(time_int)
+                theta_.append(theta_int)
+                phi_.append(phi_int)
+                
+
+        # add the current original sample
+        sh_pt_.append(sh_pt[i])
+        time_.append(time[i])
+        theta_.append(theta[i])
+        phi_.append(phi[i])
+
+
+    return sh_pt_,theta_,phi_,time_
 
 def check_paths(G,paths):
 
@@ -89,6 +176,149 @@ def get_paths(A):
                 pairs,visited=path_dfs(G,path,visited)
                 all_paths[pairs[0]]=pairs[1]
 
+
+    fid=open('curves.txt','w')
+    for vals in all_paths.values():
+
+        source_id=order_mapping[vals[0]]
+        shock_curve=[]
+        radius=[]
+        theta=[]
+        phi=[]
+        time=[]
+
+        for idx in range(1,len(vals)):
+            target_id=order_mapping[vals[idx]]
+            key=(str(source_id),str(target_id))
+            
+            flip=False
+            if key in edge_to_samples:
+
+                value=edge_to_samples[key]
+                start_idx=node_mapping[int(key[0])].id.index(int(value[0]))
+                stop_idx=node_mapping[int(key[1])].id.index(int(value[-1]))
+
+                shock_start=node_mapping[int(key[0])].pt[start_idx]
+                shock_stop=node_mapping[int(key[1])].pt[stop_idx]
+
+                radius_start=node_mapping[int(key[0])].radius[start_idx]
+                radius_stop=node_mapping[int(key[1])].radius[stop_idx]
+
+                theta_start=node_mapping[int(key[0])].theta[start_idx]
+                theta_stop=node_mapping[int(key[1])].theta[stop_idx]
+
+                phi_start=node_mapping[int(key[0])].phi[start_idx]
+                phi_stop=node_mapping[int(key[1])].phi[stop_idx]
+
+            else:
+                key=(str(target_id),str(source_id))
+                flip=True
+                value=edge_to_samples[key]
+
+                start_idx=node_mapping[int(key[1])].id.index(int(value[-1]))
+                stop_idx=node_mapping[int(key[0])].id.index(int(value[0]))
+
+                shock_start=node_mapping[int(key[1])].pt[start_idx]
+                shock_stop=node_mapping[int(key[0])].pt[stop_idx]
+
+                radius_start=node_mapping[int(key[1])].radius[start_idx]
+                radius_stop=node_mapping[int(key[0])].radius[stop_idx]
+
+                theta_start=angle0To2Pi(node_mapping[int(key[1])].theta[start_idx]+pi)
+                theta_stop=angle0To2Pi(node_mapping[int(key[0])].theta[stop_idx]+pi)
+
+                phi_start=speedToPhi(node_mapping[int(key[1])].speed[start_idx],pi)
+                phi_stop=speedToPhi(node_mapping[int(key[0])].speed[stop_idx],pi)
+
+            if flip:
+                shock_curve.extend([edge_samples.get(int(value[id])).pt for id in range(-2,len(value)*-1,-1)])
+                radius.extend([edge_samples.get(int(value[id])).radius for id in range(-2,len(value)*-1,-1)])                
+                theta.extend([angle0To2Pi(edge_samples.get(int(value[id])).theta+pi) for id in range(-2,len(value)*-1,-1)])
+                phi.extend([speedToPhi(edge_samples.get(int(value[id])).speed,pi) for id in range(-2,len(value)*-1,-1)])
+            else:
+                shock_curve.extend([edge_samples.get(int(value[id])).pt for id in range(1,len(value)-1)])
+                radius.extend([edge_samples.get(int(value[id])).radius for id in range(1,len(value)-1)])
+                theta.extend([edge_samples.get(int(value[id])).theta for id in range(1,len(value)-1)])
+                phi.extend([edge_samples.get(int(value[id])).phi for id in range(1,len(value)-1)])
+                
+            if idx==1:
+                shock_curve.insert(0,shock_start)
+                radius.insert(0,radius_start)
+                theta.insert(0,theta_start)
+                phi.insert(0,phi_start)
+
+            shock_curve.append(shock_stop)
+            radius.append(radius_stop)
+            theta.append(theta_stop)
+            phi.append(phi_stop)
+
+            source_id=target_id
+            
+        
+        plus_angles=np.array(theta,dtype=np.float64)+np.array(phi,dtype=np.float64)
+        minus_angles=np.array(theta,dtype=np.float64)-np.array(phi,dtype=np.float64)
+
+        plus_curve=translate_points(np.array(shock_curve,dtype=np.float64),plus_angles,radius)
+        minus_curve=translate_points(np.array(shock_curve,dtype=np.float64),minus_angles,radius)
+
+
+        if len(theta)==0 or len(phi)==0:
+            print(plus_curve)
+            print(vals)
+            print('very very bad')
+
+        fid.write("%i "% len(shock_curve))
+        for wt in range(len(shock_curve)):
+
+            if wt == len(shock_curve)-1:
+                fid.write("%6.16f %6.16f\n" % (shock_curve[wt][0],shock_curve[wt][1]))
+            else:
+                fid.write("%6.16f %6.16f " % (shock_curve[wt][0],shock_curve[wt][1]))
+
+        fid.write("%i "% len(theta))
+
+        if len(theta)==0:
+            fid.write("\n")
+            
+        for wt in range(len(theta)):
+
+            if wt == len(theta)-1:
+                fid.write("%6.16f\n" % (theta[wt]))
+            else:
+                fid.write("%6.16f " % (theta[wt]))
+
+
+        fid.write("%i "% len(phi))
+
+        if len(phi)==0:
+            fid.write("\n")
+
+        for wt in range(len(phi)):
+                    
+            if wt == len(phi)-1:
+                fid.write("%6.16f\n" % (phi[wt]))
+            else:
+                fid.write("%6.16f " % (phi[wt]))
+
+        fid.write("%i "% plus_curve.shape[0])
+        for wt in range(plus_curve.shape[0]):
+
+            if wt == plus_curve.shape[0]-1:
+                fid.write("%6.16f %6.16f\n" % (plus_curve[wt][0],plus_curve[wt][1]))
+            else:
+                fid.write("%6.16f %6.16f " % (plus_curve[wt][0],plus_curve[wt][1]))
+
+        fid.write("%i "% minus_curve.shape[0])
+        for wt in range(minus_curve.shape[0]):
+
+            if wt == minus_curve.shape[0]-1:
+                fid.write("%6.16f %6.16f\n" % (minus_curve[wt][0],minus_curve[wt][1]))
+            else:
+                fid.write("%6.16f %6.16f " % (minus_curve[wt][0],minus_curve[wt][1]))
+
+
+    fid.close()
+    print(len(all_paths))
     return G,all_paths
 
 def path_dfs(G,path,visited):
@@ -338,10 +568,28 @@ def getLengthSampNode():
      for value in samp_to_node_mapping.itervalues():
           length=length+len(value)
      return length
-     
-def speedToPhi(speed):
+
+#: Convert an angle to [0, 2Pi) range                                                                   
+def angle0To2Pi(angle):
+
+    if angle>=2*pi:
+        a=math.fmod(angle,pi*2);
+    elif angle < 0:
+        a=(2*pi+math.fmod(angle,2*pi));
+    else:
+        a=angle;
+
+
+    if not (a>=0 and a<2*pi):
+        a = 0
+
+    return a
+
+def speedToPhi(speed,offset=0):
      if speed != 0 and speed < 99990:
-          phi = acos(-1.0/speed)
+          phi = offset+acos(-1.0/speed)
+          if offset > 0.0:
+              phi=offset-acos(-1.0/speed)
      else:
           phi = pi/2.0
      return phi
@@ -367,10 +615,11 @@ def read_node_header(node_line,lines,numb_nodes):
      for ln in range(node_line,node_line+numb_nodes):
           text=lines[ln]
           node_id,label=text.split(' ')[:2]
-          samp=Sample(pt=[],
+          samp=Sample(id=[],
+                      pt=[],
                       type=label,
                       radius=[],
-                      theta=[],phi=[],
+                      theta=[],speed=[],phi=[],
                       plus_pt=[],minus_pt=[],
                       plus_theta=[], minus_theta=[])
           node_mapping[int(node_id)]=samp
@@ -437,10 +686,12 @@ def read_node_samples(sample_line,lines,sample_data,node_info):
                node_data=node_mapping[val]
 
                if len(node_data.pt) < len(adj_nodes_mapping[val]):
+                    node_data.id.append(id)
                     node_data.pt.append(pt)
                     node_data.radius.append(radius)
                     node_data.theta.append(theta)
                     node_data.phi.append(phi)
+                    node_data.speed.append(speed)
                     node_data.plus_pt.append(left_bnd_pt)
                     node_data.minus_pt.append(right_bnd_pt)
                     node_data.plus_theta.append(left_bnd_tangent)
@@ -512,10 +763,11 @@ def read_edge_samples(sample_line,lines,sample_data,edge_offset,numb_edges,
           right_bnd_tangent = fixAngleMPiPi_new(theta-phi+pi/2.0)
 
           samp=Sample(
+               id=id,
                pt=pt,
                type=0.0,
                radius=radius,
-               theta=theta,phi=phi,
+               theta=theta,speed=speed,phi=phi,
                plus_pt=left_bnd_pt,minus_pt=right_bnd_pt,
                plus_theta=left_bnd_tangent, minus_theta=right_bnd_tangent)
 
@@ -538,7 +790,8 @@ def compute_sorted_order():
           key=sorted_tuples[idx][3]
           value=idx
           node_order[key]=value
-
+          order_mapping[value]=key
+          
 def compute_adj_feature_matrix(edge_features,NI,NJ):
 
      # numb nodes
