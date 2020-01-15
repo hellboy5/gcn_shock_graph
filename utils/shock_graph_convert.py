@@ -210,6 +210,7 @@ def get_paths(A):
                 all_paths[pairs[0]]=pairs[1]
 
 
+    curve_stats.clear()
     fid=open('curves.txt','w')
     for vals in all_paths.values():
 
@@ -219,7 +220,8 @@ def get_paths(A):
         theta=[]
         phi=[]
         time=[]
-
+        overall_key=(str(order_mapping[vals[0]]),str(order_mapping[vals[-1]]))
+        
         for idx in range(1,len(vals)):
             target_id=order_mapping[vals[idx]]
             key=(str(source_id),str(target_id))
@@ -287,18 +289,64 @@ def get_paths(A):
 
             source_id=target_id
             
-        
-        plus_angles=np.array(theta,dtype=np.float64)+np.array(phi,dtype=np.float64)
-        minus_angles=np.array(theta,dtype=np.float64)-np.array(phi,dtype=np.float64)
-
-        plus_curve=translate_points(np.array(shock_curve,dtype=np.float64),plus_angles,radius)
-        minus_curve=translate_points(np.array(shock_curve,dtype=np.float64),minus_angles,radius)
-
 
         if len(theta)==0 or len(phi)==0:
             print(plus_curve)
             print(vals)
             print('very very bad')
+
+        plus_angles=np.array(theta,dtype=np.float64)+np.array(phi,dtype=np.float64)
+        minus_angles=np.array(theta,dtype=np.float64)-np.array(phi,dtype=np.float64)
+
+        plus_curve=translate_points(np.array(shock_curve,dtype=np.float64),plus_angles,radius)
+        minus_curve=translate_points(np.array(shock_curve,dtype=np.float64),minus_angles,radius)
+        
+        shock_length,shock_totalCurvature,shock_angle=computeCurveStats(shock_curve)
+        plus_length,plus_totalCurvature,plus_angle=computeCurveStats(plus_curve)
+        minus_length,minus_totalCurvature,minus_angle=computeCurveStats(minus_curve)
+
+        if len(plus_curve)==0:
+            plus_length         = shock_length
+            plus_totalCurvature = shock_totalCurvature
+            plus_angle          = shock_angle
+
+        if len(minus_curve)==0:
+            minus_length         = shock_length
+            minus_totalCurvature = shock_totalCurvature
+            minus_angle          = shock_angle
+
+        area=0.0
+        if len(plus_curve) and len(minus_curve):
+            poly=[]
+            poly.append(shock_curve[0])
+            poly.extend(plus_curve)
+            poly.append(shock_curve[-1])
+            minus_curve=np.flip(minus_curve,0)
+            poly.extend(minus_curve)
+            poly.append(shock_curve[0])
+            totals=zip(*poly)
+            area=polyArea(np.array(totals[0]),np.array(totals[1]))
+
+
+        if len(plus_curve) and len(minus_curve):
+            if plus_curve[0][0] > minus_curve[0][0]:
+                plus_totalCurvature,minus_totalCurvature=minus_totalCurvature,plus_totalCurvature
+                plus_angle,minus_angle=minus_angle,plus_angle
+                plus_length,minus_length=minus_length,plus_length
+                  
+        stats=CurveProps(SCurve=shock_totalCurvature,
+                         SLength=shock_length,
+                         SAngle=shock_angle,
+                         PCurve=plus_totalCurvature,
+                         PLength=plus_length,
+                         PAngle=plus_angle,
+                         MCurve=minus_totalCurvature,
+                         MLength=minus_length,
+                         MAngle=minus_angle,
+                         PolyArea=area)
+          
+        curve_stats[overall_key]=stats
+
 
         fid.write("%i "% len(shock_curve))
         for wt in range(len(shock_curve)):
