@@ -6,7 +6,8 @@ import numpy as np
 import h5py
 import math
 import networkx as nx
-import matplotlib.pyplot as plt
+import argparse
+#import matplotlib.pyplot as plt
 import copy
 
 from collections import defaultdict
@@ -34,6 +35,38 @@ highest_degree=0
 ZERO_TOLERANCE=1E-1
 
 
+def coarsen_graph(paths):
+
+
+    adj_nodes_mapping.clear()
+    edge_mapping.clear()
+    node_order.clear()
+    
+    for vals in paths.values():
+        source_id=order_mapping[vals[0]]
+        target_id=order_mapping[vals[-1]]
+
+        source_rad=node_mapping[source_id].radius[0]
+        target_rad=node_mapping[target_id].radius[0]
+
+
+        if source_rad <= target_rad:
+            edge_mapping[source_id].append(target_id)
+        else:
+            edge_mapping[target_id].append(source_id)
+
+        adj_nodes_mapping[source_id].append(target_id)
+        adj_nodes_mapping[target_id].append(source_id)
+
+
+        for id in range(1,len(vals)-1):
+            sample_id=order_mapping[vals[id]]
+            del node_mapping[sample_id]
+
+    
+
+    compute_sorted_order()
+    
 def translate_points(pt,v,time):
 
     trans_points=np.zeros((pt.shape[0],2),dtype=np.float64)
@@ -318,7 +351,6 @@ def get_paths(A):
 
 
     fid.close()
-    print(len(all_paths))
     return G,all_paths
 
 def path_dfs(G,path,visited):
@@ -340,34 +372,34 @@ def path_dfs(G,path,visited):
 
     return (str(sorted(path)),path),visited
         
-def vis(G,I,positions,all_paths):
+# def vis(G,I,positions,all_paths):
 
-    pos_flipped=np.fliplr(positions)
-    fig, ax = plt.subplots()
-    plt.imshow(I)
-    nx.draw(G,pos=pos_flipped,node_size=20)
+#     pos_flipped=np.fliplr(positions)
+#     fig, ax = plt.subplots()
+#     plt.imshow(I)
+#     nx.draw(G,pos=pos_flipped,node_size=20)
 
-    #create pos vector
-    pos_vector=dict()
-    for x in range(positions.shape[0]):
-        pos_vector[x]=pos_flipped[x,:]
+#     #create pos vector
+#     pos_vector=dict()
+#     for x in range(positions.shape[0]):
+#         pos_vector[x]=pos_flipped[x,:]
         
-    for path in all_paths.values():
-        a1=copy.deepcopy(path)
-        a2=copy.deepcopy(path)
-        a1.pop(-1)
-        a2.pop(0)
-        elist=zip(a1,a2)
-        colors=np.random.rand(3)
-        colors=np.tile(colors,(len(elist),1))
+#     for path in all_paths.values():
+#         a1=copy.deepcopy(path)
+#         a2=copy.deepcopy(path)
+#         a1.pop(-1)
+#         a2.pop(0)
+#         elist=zip(a1,a2)
+#         colors=np.random.rand(3)
+#         colors=np.tile(colors,(len(elist),1))
         
-        nx.draw_networkx_edges(G,
-                               pos=pos_vector,
-                               edgelist=elist,
-                               edge_color=colors,width=10)
+#         nx.draw_networkx_edges(G,
+#                                pos=pos_vector,
+#                                edgelist=elist,
+#                                edge_color=colors,width=10)
         
     
-    plt.show()
+#     plt.show()
     
 
 def polyArea(x,y):
@@ -914,7 +946,7 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
 
      return adj_matrix,feature_matrix
     
-def convertEsfFile(esf_file,image_file):
+def convertEsfFile(esf_file,image_file,coarse):
 
      I=scipy.misc.imread(image_file)
      NI=I.shape[0]
@@ -947,18 +979,23 @@ def convertEsfFile(esf_file,image_file):
                        numb_edge_samples,numb_degen_edges,node_info)
      compute_edge_stats()
      compute_sorted_order()
+
+         
      adj_matrix,feature_matrix=compute_adj_feature_matrix(edge_features,NI,NJ)
 
-     G,paths=get_paths(adj_matrix)
-     flag=check_paths(G,paths)
-     
-     if flag:
-         print('All paths check out!! good!')
-     else:
-         print('ERRORPATH: not all paths checked')
+     if coarse:
+         print('Coarsening Graph')
+         G,paths=get_paths(adj_matrix)
+         flag=check_paths(G,paths)
+         if flag:
+             print('All paths check out!! good!')
+         else:
+             print('ERRORPATH: not all paths checked')
+         coarsen_graph(paths)
+         adj_matrix,feature_matrix=compute_adj_feature_matrix(edge_features,NI,NJ)
+         #vis(G,I,feature_matrix[:,:2],paths)
 
-     #vis(G,I,feature_matrix[:,:2],paths)
-     
+         
      nodes=adj_matrix.shape[0]
      
      fname_graph=os.path.splitext(esf_file)[0]+'-n'+str(nodes)+'-shock_graph.h5'
@@ -971,6 +1008,12 @@ def convertEsfFile(esf_file,image_file):
 
      
 if __name__ == '__main__':
-     esf_file=sys.argv[1]
-     image_file=sys.argv[2]
-     convertEsfFile(esf_file,image_file)
+     parser = argparse.ArgumentParser(description='Convert SG File')
+
+     parser.add_argument("--esf",type=str,help='Shock Graph file')
+     parser.add_argument("--image",type=str,help='Image File')
+     parser.add_argument("--coarse",type=bool,default=False,
+                         help="Coarse graph with only degree 1 and 3 nodes")
+     args=parser.parse_args()
+     
+     convertEsfFile(args.esf,args.image,args.coarse)
