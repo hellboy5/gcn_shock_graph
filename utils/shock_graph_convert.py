@@ -211,7 +211,7 @@ def get_paths(A):
 
 
     curve_stats.clear()
-    fid=open('curves.txt','w')
+    #fid=open('curves.txt','w')
     for vals in all_paths.values():
 
         source_id=order_mapping[vals[0]]
@@ -348,57 +348,57 @@ def get_paths(A):
         curve_stats[overall_key]=stats
 
 
-        fid.write("%i "% len(shock_curve))
-        for wt in range(len(shock_curve)):
+    #     fid.write("%i "% len(shock_curve))
+    #     for wt in range(len(shock_curve)):
 
-            if wt == len(shock_curve)-1:
-                fid.write("%6.16f %6.16f\n" % (shock_curve[wt][0],shock_curve[wt][1]))
-            else:
-                fid.write("%6.16f %6.16f " % (shock_curve[wt][0],shock_curve[wt][1]))
+    #         if wt == len(shock_curve)-1:
+    #             fid.write("%6.16f %6.16f\n" % (shock_curve[wt][0],shock_curve[wt][1]))
+    #         else:
+    #             fid.write("%6.16f %6.16f " % (shock_curve[wt][0],shock_curve[wt][1]))
 
-        fid.write("%i "% len(theta))
+    #     fid.write("%i "% len(theta))
 
-        if len(theta)==0:
-            fid.write("\n")
+    #     if len(theta)==0:
+    #         fid.write("\n")
             
-        for wt in range(len(theta)):
+    #     for wt in range(len(theta)):
 
-            if wt == len(theta)-1:
-                fid.write("%6.16f\n" % (theta[wt]))
-            else:
-                fid.write("%6.16f " % (theta[wt]))
+    #         if wt == len(theta)-1:
+    #             fid.write("%6.16f\n" % (theta[wt]))
+    #         else:
+    #             fid.write("%6.16f " % (theta[wt]))
 
 
-        fid.write("%i "% len(phi))
+    #     fid.write("%i "% len(phi))
 
-        if len(phi)==0:
-            fid.write("\n")
+    #     if len(phi)==0:
+    #         fid.write("\n")
 
-        for wt in range(len(phi)):
+    #     for wt in range(len(phi)):
                     
-            if wt == len(phi)-1:
-                fid.write("%6.16f\n" % (phi[wt]))
-            else:
-                fid.write("%6.16f " % (phi[wt]))
+    #         if wt == len(phi)-1:
+    #             fid.write("%6.16f\n" % (phi[wt]))
+    #         else:
+    #             fid.write("%6.16f " % (phi[wt]))
 
-        fid.write("%i "% plus_curve.shape[0])
-        for wt in range(plus_curve.shape[0]):
+    #     fid.write("%i "% plus_curve.shape[0])
+    #     for wt in range(plus_curve.shape[0]):
 
-            if wt == plus_curve.shape[0]-1:
-                fid.write("%6.16f %6.16f\n" % (plus_curve[wt][0],plus_curve[wt][1]))
-            else:
-                fid.write("%6.16f %6.16f " % (plus_curve[wt][0],plus_curve[wt][1]))
+    #         if wt == plus_curve.shape[0]-1:
+    #             fid.write("%6.16f %6.16f\n" % (plus_curve[wt][0],plus_curve[wt][1]))
+    #         else:
+    #             fid.write("%6.16f %6.16f " % (plus_curve[wt][0],plus_curve[wt][1]))
 
-        fid.write("%i "% minus_curve.shape[0])
-        for wt in range(minus_curve.shape[0]):
+    #     fid.write("%i "% minus_curve.shape[0])
+    #     for wt in range(minus_curve.shape[0]):
 
-            if wt == minus_curve.shape[0]-1:
-                fid.write("%6.16f %6.16f\n" % (minus_curve[wt][0],minus_curve[wt][1]))
-            else:
-                fid.write("%6.16f %6.16f " % (minus_curve[wt][0],minus_curve[wt][1]))
+    #         if wt == minus_curve.shape[0]-1:
+    #             fid.write("%6.16f %6.16f\n" % (minus_curve[wt][0],minus_curve[wt][1]))
+    #         else:
+    #             fid.write("%6.16f %6.16f " % (minus_curve[wt][0],minus_curve[wt][1]))
 
 
-    fid.close()
+    # fid.close()
     return G,all_paths
 
 def path_dfs(G,path,visited):
@@ -418,6 +418,19 @@ def path_dfs(G,path,visited):
                 path.append(val)
                 traversal.append(val)
 
+
+    #check path ends with a degree three or degree one node
+    if G.degree[path[-1]] == 2:
+        print('Found path that does not end in degree 3 or 1')
+        node=path[-1]
+        neighbors=G.neighbors(node)
+        for val in neighbors:
+            if val in visited:
+                if G.degree[val]>=3 or G.degree[val]==1:
+                    path.append(val)
+                    break
+        
+    
     return (str(sorted(path)),path),visited
         
 # def vis(G,I,positions,all_paths):
