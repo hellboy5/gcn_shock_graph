@@ -32,6 +32,7 @@ Sample=namedtuple('Sample','id pt type radius theta speed phi plus_pt \
 minus_pt plus_theta minus_theta')
 CurveProps=namedtuple('CurveProps','SCurve SLength SAngle PCurve PLength PAngle MCurve MLength MAngle PolyArea')
 highest_degree=0
+special_2_nodes=set()
 ZERO_TOLERANCE=1E-1
 
 
@@ -219,7 +220,6 @@ def check_paths(G,paths):
 
     nodes=G.nodes
     hist=defaultdict(int)
-    bad_node=-1
     for val in paths.values():
         for vertices in val:
             hist[vertices]+=1
@@ -233,17 +233,16 @@ def check_paths(G,paths):
         if nn not in hist:
             print('Nodes not visited')
             flag=False
-            bad_node=nn
             break
         
         counts=hist[nn]
-        if counts != truth:
+        if (counts != truth) and (nn not in special_2_nodes):
             print('Nodes not visited enough or too many times')
             flag=False
             break
 
 
-    return flag,bad_node
+    return flag
     
 
 def get_disconnected_path(G,idx):
@@ -265,12 +264,22 @@ def get_disconnected_path(G,idx):
 def get_paths(A):
     
     G=nx.from_numpy_matrix(A)
+    components_visited=set()
     degree_three_one_nodes=[]
     visited=set()
     for ids in list(G.nodes):
         if G.degree[ids] >= 3 or G.degree[ids]==1:
             degree_three_one_nodes.append(ids)
-            
+            for x,c in enumerate(nx.connected_components(G)):
+                if ids in c:
+                    components_visited.add(x)
+                
+    if len(components_visited) != nx.number_connected_components(G):
+        print('We have not visited all connected components')
+        for x,c in enumerate(nx.connected_components(G)):
+            if x not in components_visited:
+                degree_three_one_nodes.append(c.pop())
+        
     all_paths=dict()
 
 
@@ -513,6 +522,10 @@ def path_dfs(G,path,visited):
                 if G.degree[val]>=3 or G.degree[val]==1:
                     path.append(val)
                     break
+        if G.degree[path[-1]]==2:
+            print('Path is still 2 at end')
+            path.append(path[0])
+            special_2_nodes.add(path[0])
         
     
     return (str(sorted(path)),path),visited
@@ -1131,7 +1144,7 @@ def convertEsfFile(esf_file,image_file,coarse):
      if coarse:
          print('Coarsening Graph')
          G,paths=get_paths(adj_matrix)
-         flag,bad_node=check_paths(G,paths)
+         flag=check_paths(G,paths)
          if flag:
              print('All paths check out!! good!')
          else:
