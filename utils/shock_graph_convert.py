@@ -95,6 +95,69 @@ def angleDiff_new(a1,a2):
 
     return 0.0
 
+def l2_dist(pt1,pt2):
+    dx   = pt1[0]-pt2[0]
+    dy   = pt1[1]-pt2[1]
+    ds = math.sqrt(dx*dx + dy*dy)
+    return ds
+
+def subsample(sh_pt_,time_,theta_,phi_,bdry_plus_,bdry_minus_,subsample_ds=5.0):
+
+  sub_sh_pt=[]
+  sub_time=[]
+  sub_theta=[]
+  sub_phi=[]
+  sub_bdry_plus=[]
+  sub_bdry_minus=[]
+  
+  #keep the first and last points and subsample the rest
+
+  
+  #first sample
+  sub_sh_pt.append(sh_pt_[0])
+  sub_time.append(time_[0])  
+  sub_theta.append(theta_[0])
+  sub_phi.append(phi_[0])
+  sub_bdry_plus.append(bdry_plus_[0])
+  sub_bdry_minus.append(bdry_minus_[0])
+
+  So = sh_pt_[0]
+  Se = sh_pt_[-1]
+  PBo = bdry_plus_[0]
+  PBe = bdry_plus_[-1]
+  MBo = bdry_minus_[0]
+  MBe = bdry_minus_[-1]
+
+  for i in range(1,len(sh_pt_)-1):
+      Sn=sh_pt_[i]
+      PBn=bdry_plus_[i]
+      MBn=bdry_minus_[i]
+
+      #core subsampling criteria
+      if ( (l2_dist(So,Sn)  > subsample_ds) and (l2_dist(Sn,Se)  >subsample_ds) ) or \
+         ( (l2_dist(PBo,PBn)> subsample_ds) and (l2_dist(PBn,PBe)>subsample_ds) ) or \
+         ( (l2_dist(MBo,MBn)> subsample_ds) and (l2_dist(MBn,MBe)>subsample_ds) ):
+    
+          sub_sh_pt.append(sh_pt_[i])
+          sub_time.append(time_[i])
+          sub_theta.append(theta_[i])
+          sub_phi.append(phi_[i])      
+          sub_bdry_plus.append(bdry_plus_[i])
+          sub_bdry_minus.append(bdry_minus_[i])
+
+          So=Sn
+          PBo=PBn
+          MBo=MBn
+      
+  #last sample
+  sub_sh_pt.append(sh_pt_[-1])
+  sub_time.append(time_[-1])
+  sub_theta.append(theta_[-1])
+  sub_phi.append(phi_[-1])
+  sub_bdry_plus.append(bdry_plus_[-1])
+  sub_bdry_minus.append(bdry_minus_[-1])
+  
+  return sub_sh_pt,sub_theta,sub_phi,sub_time,sub_bdry_plus,sub_bdry_minus
 
 # This function takes a sampled shock curve and interpolates it.
 def interpolate(sh_pt,time,theta,phi,interpolate_ds=1.0):
@@ -109,9 +172,9 @@ def interpolate(sh_pt,time,theta,phi,interpolate_ds=1.0):
     phi_=[]
 
     sh_pt_.append(sh_pt[0])
-    time_.append(time[0]);
-    theta_.append(theta[0]);
-    phi_.append(phi[0]);
+    time_.append(time[0])
+    theta_.append(theta[0])
+    phi_.append(phi[0])
 
 
     for i in range(1,len(sh_pt)):
@@ -150,14 +213,13 @@ def interpolate(sh_pt,time,theta,phi,interpolate_ds=1.0):
         theta_.append(theta[i])
         phi_.append(phi[i])
 
-
     return sh_pt_,theta_,phi_,time_
 
 def check_paths(G,paths):
 
     nodes=G.nodes
     hist=defaultdict(int)
-
+    bad_node=-1
     for val in paths.values():
         for vertices in val:
             hist[vertices]+=1
@@ -171,6 +233,7 @@ def check_paths(G,paths):
         if nn not in hist:
             print('Nodes not visited')
             flag=False
+            bad_node=nn
             break
         
         counts=hist[nn]
@@ -180,9 +243,25 @@ def check_paths(G,paths):
             break
 
 
-    return flag
+    return flag,bad_node
     
 
+def get_disconnected_path(G,idx):
+
+    visited=set()
+    all_paths=dict()
+    visited.add(idx)
+    for vx in G.neighbors(idx):
+        path=[]
+        path.append(idx)
+        
+        if vx not in visited:
+            path.append(vx)
+            pairs,visited=path_dfs(G,path,visited)
+            all_paths[pairs[0]]=pairs[1]
+
+    print(all_paths)
+    
 def get_paths(A):
     
     G=nx.from_numpy_matrix(A)
@@ -265,6 +344,11 @@ def get_paths(A):
                 phi_start=speedToPhi(node_mapping[int(key[1])].speed[start_idx],pi)
                 phi_stop=speedToPhi(node_mapping[int(key[0])].speed[stop_idx],pi)
 
+            shock_curve.append(shock_start)
+            radius.append(radius_start)
+            theta.append(theta_start)
+            phi.append(phi_start)
+
             if flip:
                 shock_curve.extend([edge_samples.get(int(value[id])).pt for id in range(-2,len(value)*-1,-1)])
                 radius.extend([edge_samples.get(int(value[id])).radius for id in range(-2,len(value)*-1,-1)])                
@@ -276,12 +360,8 @@ def get_paths(A):
                 theta.extend([edge_samples.get(int(value[id])).theta for id in range(1,len(value)-1)])
                 phi.extend([edge_samples.get(int(value[id])).phi for id in range(1,len(value)-1)])
                 
-            if idx==1:
-                shock_curve.insert(0,shock_start)
-                radius.insert(0,radius_start)
-                theta.insert(0,theta_start)
-                phi.insert(0,phi_start)
-
+           
+           
             shock_curve.append(shock_stop)
             radius.append(radius_stop)
             theta.append(theta_stop)
@@ -295,11 +375,15 @@ def get_paths(A):
             print(vals)
             print('very very bad')
 
+        shock_curve,theta,phi,radius=interpolate(shock_curve,radius,theta,phi)
+        
         plus_angles=np.array(theta,dtype=np.float64)+np.array(phi,dtype=np.float64)
         minus_angles=np.array(theta,dtype=np.float64)-np.array(phi,dtype=np.float64)
 
         plus_curve=translate_points(np.array(shock_curve,dtype=np.float64),plus_angles,radius)
         minus_curve=translate_points(np.array(shock_curve,dtype=np.float64),minus_angles,radius)
+      
+        shock_curve,theta,phi,radius,plus_curve,minus_curve=subsample(shock_curve,radius,theta,phi,plus_curve,minus_curve)
         
         shock_length,shock_totalCurvature,shock_angle=computeCurveStats(shock_curve)
         plus_length,plus_totalCurvature,plus_angle=computeCurveStats(plus_curve)
@@ -316,16 +400,16 @@ def get_paths(A):
             minus_angle          = shock_angle
 
         area=0.0
-        if len(plus_curve) and len(minus_curve):
-            poly=[]
-            poly.append(shock_curve[0])
-            poly.extend(plus_curve)
-            poly.append(shock_curve[-1])
-            minus_curve=np.flip(minus_curve,0)
-            poly.extend(minus_curve)
-            poly.append(shock_curve[0])
-            totals=zip(*poly)
-            area=polyArea(np.array(totals[0]),np.array(totals[1]))
+        # if len(plus_curve) and len(minus_curve):
+        #     poly=[]
+        #     poly.append(shock_curve[0])
+        #     poly.extend(plus_curve)
+        #     poly.append(shock_curve[-1])
+        #     minus_curve=np.flip(minus_curve,0)
+        #     poly.extend(minus_curve)
+        #     poly.append(shock_curve[0])
+        #     totals=zip(*poly)
+        #     area=polyArea(np.array(totals[0]),np.array(totals[1]))
 
 
         if len(plus_curve) and len(minus_curve):
@@ -381,18 +465,18 @@ def get_paths(A):
     #         else:
     #             fid.write("%6.16f " % (phi[wt]))
 
-    #     fid.write("%i "% plus_curve.shape[0])
-    #     for wt in range(plus_curve.shape[0]):
+    #     fid.write("%i "% len(plus_curve))
+    #     for wt in range(len(plus_curve)):
 
-    #         if wt == plus_curve.shape[0]-1:
+    #         if wt == len(plus_curve)-1:
     #             fid.write("%6.16f %6.16f\n" % (plus_curve[wt][0],plus_curve[wt][1]))
     #         else:
     #             fid.write("%6.16f %6.16f " % (plus_curve[wt][0],plus_curve[wt][1]))
 
-    #     fid.write("%i "% minus_curve.shape[0])
-    #     for wt in range(minus_curve.shape[0]):
+    #     fid.write("%i "% len(minus_curve))
+    #     for wt in range(len(minus_curve)):
 
-    #         if wt == minus_curve.shape[0]-1:
+    #         if wt == len(minus_curve)-1:
     #             fid.write("%6.16f %6.16f\n" % (minus_curve[wt][0],minus_curve[wt][1]))
     #         else:
     #             fid.write("%6.16f %6.16f " % (minus_curve[wt][0],minus_curve[wt][1]))
@@ -561,23 +645,23 @@ def computeCurvatures(dx,dy,arcLength,curveLength):
 
 def computeAngles(curve):
      angle=[]
-     angle.append(0.0);
-     totalAngleChange=0.0;
+     angle.append(0.0)
+     totalAngleChange=0.0
 
      px=curve[0][0]
      py=curve[0][1]
      for i in range(1,len(curve)):
           cx=curve[i][0]
           cy=curve[i][1]
-          theta=math.atan2(cy-py,cx-px);
-          angle.append(theta);
+          theta=math.atan2(cy-py,cx-px)
+          angle.append(theta)
           px=cx
           py=cy
      
      if len(curve) >2 :
-          angle[0]=angle[1];
+          angle[0]=angle[1]
           for i in range(1,len(angle)):
-               totalAngleChange += abs(angle[i]-angle[i-1]);
+               totalAngleChange += abs(angle[i]-angle[i-1])
 
      return totalAngleChange
   
@@ -666,11 +750,11 @@ def getLengthSampNode():
 def angle0To2Pi(angle):
 
     if angle>=2*pi:
-        a=math.fmod(angle,pi*2);
+        a=math.fmod(angle,pi*2)
     elif angle < 0:
-        a=(2*pi+math.fmod(angle,2*pi));
+        a=(2*pi+math.fmod(angle,2*pi))
     else:
-        a=angle;
+        a=angle
 
 
     if not (a>=0 and a<2*pi):
@@ -1047,7 +1131,7 @@ def convertEsfFile(esf_file,image_file,coarse):
      if coarse:
          print('Coarsening Graph')
          G,paths=get_paths(adj_matrix)
-         flag=check_paths(G,paths)
+         flag,bad_node=check_paths(G,paths)
          if flag:
              print('All paths check out!! good!')
          else:
