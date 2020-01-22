@@ -409,16 +409,20 @@ def get_paths(A):
             minus_angle          = shock_angle
 
         area=0.0
-        # if len(plus_curve) and len(minus_curve):
-        #     poly=[]
-        #     poly.append(shock_curve[0])
-        #     poly.extend(plus_curve)
-        #     poly.append(shock_curve[-1])
-        #     minus_curve=np.flip(minus_curve,0)
-        #     poly.extend(minus_curve)
-        #     poly.append(shock_curve[0])
-        #     totals=zip(*poly)
-        #     area=polyArea(np.array(totals[0]),np.array(totals[1]))
+        xpoly=[]
+        ypoly=[]
+        if len(plus_curve) and len(minus_curve):
+            poly=[]
+            poly.append(shock_curve[0])
+            poly.extend(plus_curve)
+            poly.append(shock_curve[-1])
+            minus_curve=np.flip(minus_curve,0)
+            poly.extend(minus_curve)
+            poly.append(shock_curve[0])
+            totals=zip(*poly)
+            xpoly=totals[0]
+            ypoly=totals[1]
+            area=polyArea(np.array(totals[0]),np.array(totals[1]))
 
 
         if len(plus_curve) and len(minus_curve):
@@ -441,7 +445,7 @@ def get_paths(A):
         curve_stats[overall_key]=stats
 
 
-    #     fid.write("%i "% len(shock_curve))
+     #    fid.write("%i "% len(shock_curve))
     #     for wt in range(len(shock_curve)):
 
     #         if wt == len(shock_curve)-1:
@@ -489,6 +493,17 @@ def get_paths(A):
     #             fid.write("%6.16f %6.16f\n" % (minus_curve[wt][0],minus_curve[wt][1]))
     #         else:
     #             fid.write("%6.16f %6.16f " % (minus_curve[wt][0],minus_curve[wt][1]))
+
+
+    #     fid.write("%i "% len(xpoly))
+    #     fid.write("%6.16f "% area)
+        
+    #     for wt in range(len(xpoly)):
+
+    #         if wt == len(xpoly)-1:
+    #             fid.write("%6.16f %6.16f\n" % (xpoly[wt],ypoly[wt]))
+    #         else:
+    #             fid.write("%6.16f %6.16f " % (xpoly[wt],ypoly[wt]))
 
 
     # fid.close()
