@@ -33,6 +33,7 @@ minus_pt plus_theta minus_theta')
 CurveProps=namedtuple('CurveProps','SCurve SLength SAngle PCurve PLength PAngle MCurve MLength MAngle PolyArea')
 highest_degree=0
 special_2_nodes=set()
+revisit_nodes=set()
 ZERO_TOLERANCE=1E-1
 
 
@@ -216,6 +217,14 @@ def interpolate(sh_pt,time,theta,phi,interpolate_ds=1.0):
 
     return sh_pt_,theta_,phi_,time_
 
+
+def get_degree(G,node):
+    gg=order_mapping[node]
+    if str(gg) in revisit_nodes:
+        return G.degree[node]+1
+    else:
+        return G.degree[node]
+    
 def check_paths(G,paths):
 
     nodes=G.nodes
@@ -226,7 +235,7 @@ def check_paths(G,paths):
 
     flag=True
     for nn in list(G.nodes):
-        truth=G.degree[nn]
+        truth=get_degree(G,nn)
         if truth==2:
             truth-=1
 
@@ -243,24 +252,7 @@ def check_paths(G,paths):
 
 
     return flag
-    
-
-def get_disconnected_path(G,idx):
-
-    visited=set()
-    all_paths=dict()
-    visited.add(idx)
-    for vx in G.neighbors(idx):
-        path=[]
-        path.append(idx)
         
-        if vx not in visited:
-            path.append(vx)
-            pairs,visited=path_dfs(G,path,visited)
-            all_paths[pairs[0]]=pairs[1]
-
-    print(all_paths)
-    
 def get_paths(A):
     
     G=nx.from_numpy_matrix(A)
@@ -268,7 +260,7 @@ def get_paths(A):
     degree_three_one_nodes=[]
     visited=set()
     for ids in list(G.nodes):
-        if G.degree[ids] >= 3 or G.degree[ids]==1:
+        if get_degree(G,ids) >= 3 or get_degree(G,ids)==1:
             degree_three_one_nodes.append(ids)
             for x,c in enumerate(nx.connected_components(G)):
                 if ids in c:
@@ -281,9 +273,6 @@ def get_paths(A):
                 degree_three_one_nodes.append(c.pop())
         
     all_paths=dict()
-
-
-
     
     for idx in degree_three_one_nodes:
 
@@ -296,7 +285,6 @@ def get_paths(A):
                 path.append(vx)
                 pairs,visited=path_dfs(G,path,visited)
                 all_paths[pairs[0]]=pairs[1]
-
 
     curve_stats.clear()
     #fid=open('curves.txt','w')
@@ -516,7 +504,7 @@ def path_dfs(G,path,visited):
     while len(traversal):
         node=traversal.pop(-1)
 
-        if G.degree[node]>=3 or G.degree[node]==1:
+        if get_degree(G,node)>=3 or get_degree(G,node)==1:
             break
         
         visited.add(node)
@@ -528,16 +516,17 @@ def path_dfs(G,path,visited):
 
 
     #check path ends with a degree three or degree one node
-    if G.degree[path[-1]] == 2:
+    if get_degree(G,path[-1]) == 2:
         print('Found path that does not end in degree 3 or 1')
         node=path[-1]
         neighbors=G.neighbors(node)
         for val in neighbors:
             if val in visited:
-                if G.degree[val]>=3 or G.degree[val]==1:
+                if get_degree(G,val)>=3 or get_degree(G,val)==1:
                     path.append(val)
                     break
-        if G.degree[path[-1]]==2:
+
+        if get_degree(G,path[-1])==2:
             print('Path is still 2 at end')
             path.append(path[0])
             special_2_nodes.add(path[0])
@@ -918,8 +907,18 @@ def read_edge_header(sample_line,lines,sample_data,edge_offset,numb_edges):
           del edge_samples[-1]
           if len(edge_samples)==1:
                degen_edges+=1
-          edge_mapping[int(source)].append(int(target))
-          edge_to_samples[(source,target)]=edge_samples
+
+          if (source,target) not in edge_to_samples:
+              edge_mapping[int(source)].append(int(target))
+              edge_to_samples[(source,target)]=edge_samples
+          else:
+              print('@:Seen ',(source,target),' flipping')
+              edge_mapping[int(target)].append(int(source))
+              edge_samples.reverse()
+              edge_to_samples[(target,source)]=edge_samples
+              revisit_nodes.add(source)
+              revisit_nodes.add(target)
+              
           numb_samples.update(edge_samples)
           
      return len(numb_samples),degen_edges
