@@ -737,11 +737,12 @@ def compute_edge_stats():
                area=polyArea(np.array(totals[0]),np.array(totals[1]))
 
 
-          if len(plus_curve) and len(minus_curve):
-              if plus_curve[0][0] > minus_curve[0][0]:
-                  plus_totalCurvature,minus_totalCurvature=minus_totalCurvature,plus_totalCurvature
-                  plus_angle,minus_angle=minus_angle,plus_angle
-                  plus_length,minus_length=minus_length,plus_length
+          # Not sure if this is good revisit
+          # if len(plus_curve) and len(minus_curve):
+          #     if plus_curve[0][0] > minus_curve[0][0]:
+          #         plus_totalCurvature,minus_totalCurvature=minus_totalCurvature,plus_totalCurvature
+          #         plus_angle,minus_angle=minus_angle,plus_angle
+          #         plus_length,minus_length=minus_length,plus_length
               
           stats=CurveProps(SCurve=shock_totalCurvature,
                            SLength=shock_length,
@@ -870,9 +871,9 @@ def read_node_samples(sample_line,lines,sample_data,node_info):
           left_bnd_tangent  = fixAngleMPiPi_new(theta+phi-pi/2.0)
           right_bnd_tangent = fixAngleMPiPi_new(theta-phi+pi/2.0)
 
-          if left_bnd_pt[0] > right_bnd_pt[0]:
-              left_bnd_pt,right_bnd_pt = right_bnd_pt,left_bnd_pt
-              left_bnd_tangent,right_bnd_tangent = right_bnd_tangent,left_bnd_tangent
+          # if left_bnd_pt[0] > right_bnd_pt[0]:
+          #     left_bnd_pt,right_bnd_pt = right_bnd_pt,left_bnd_pt
+          #     left_bnd_tangent,right_bnd_tangent = right_bnd_tangent,left_bnd_tangent
 
           #get affected node data
           ids=samp_to_node_mapping[id]
@@ -1022,10 +1023,10 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
      #write out feature matrix
      for key in node_mapping:
           row=node_order[key]
-
+          
           order_list=[]
           for value in adj_nodes_mapping[key]:
-               order_list.append(node_mapping[value].pt[0][0])
+               order_list.append(node_mapping[value].radius[0])
           rad_list=np.argsort(order_list)
 
           # populate points of node location
