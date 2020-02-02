@@ -416,7 +416,7 @@ class ShockGraphDataset(Dataset):
             rad_scale=68.2340
             angle_scale=713.8326
             length_scale=116.8454
-            curve_scale=10.6709
+            curve_scale=10.817794298253000
             poly_scale=8272.887700675255
 
             # scale shock radius
@@ -607,24 +607,11 @@ class ShockGraphDataset(Dataset):
 
         return F_matrix,adj_matrix,mask
         
-    def __unwrap_data(self,F_matrix,debug_matrix):
+    def __unwrap_data(self,F_matrix):
 
         #make a copy
         feature_matrix=F_matrix
-
-        # get debug data
-        ref_pt=debug_matrix[:2]
-        max_offsets=debug_matrix[2:4]
-        max_radius=debug_matrix[4]
-
-        self.max_radius=max_radius
         
-        # shock pt location
-        feature_matrix[:,:2] *= max_offsets
-
-        # radius of shock point
-        feature_matrix[:,2] *= max_radius
-
         # theta of node
         feature_matrix[:,3] *= 2.0*math.pi
         feature_matrix[:,4] *= 2.0*math.pi
@@ -634,16 +621,6 @@ class ShockGraphDataset(Dataset):
         feature_matrix[:,6] *= math.pi
         feature_matrix[:,7] *= math.pi
         feature_matrix[:,8] *= math.pi
-
-        # left boundary point
-        feature_matrix[:,9:11] *= max_offsets
-        feature_matrix[:,11:13] *= max_offsets
-        feature_matrix[:,13:15] *= max_offsets
-
-        # right boundary point
-        feature_matrix[:,15:17] *= max_offsets
-        feature_matrix[:,17:19] *= max_offsets
-        feature_matrix[:,19:21] *= max_offsets
 
         # plus theta
         feature_matrix[:,21] *= math.pi
@@ -655,21 +632,12 @@ class ShockGraphDataset(Dataset):
         feature_matrix[:,25] *= math.pi
         feature_matrix[:,26] *= math.pi
 
-        # remove ref pt for contour and shock points
-        feature_matrix[:,0] +=ref_pt[0]
-        feature_matrix[:,1] +=ref_pt[1]
-
         zero_set=np.array([0.0,0.0])
 
         mask=np.ones(feature_matrix.shape,dtype=np.float32)
         for row_idx in range(0,feature_matrix.shape[0]):
-            feature_matrix[row_idx,9:11]+=ref_pt
-            feature_matrix[row_idx,15:17]+=ref_pt
                         
-            if np.array_equal(feature_matrix[row_idx,11:13],zero_set)==False:
-                feature_matrix[row_idx,11:13]+=ref_pt
-                feature_matrix[row_idx,17:19]+=ref_pt
-            else:
+            if np.array_equal(feature_matrix[row_idx,11:13],zero_set)==True:
                 mask[row_idx,11:13]=0
                 mask[row_idx,4]=0
                 mask[row_idx,7]=0
@@ -677,10 +645,7 @@ class ShockGraphDataset(Dataset):
                 mask[row_idx,25]=0
                 mask[row_idx,17:19]=0
 
-            if np.array_equal(feature_matrix[row_idx,13:15],zero_set)==False:
-                feature_matrix[row_idx,13:15]+=ref_pt
-                feature_matrix[row_idx,19:21]+=ref_pt
-            else:
+            if np.array_equal(feature_matrix[row_idx,13:15],zero_set)==True:
                 mask[row_idx,13:15]=0
                 mask[row_idx,5]=0
                 mask[row_idx,8]=0
@@ -693,10 +658,6 @@ class ShockGraphDataset(Dataset):
         
     def __read_shock_graph(self,sg_file):
         fid=h5py.File(sg_file,'r')
-
-        # read in debug info
-        debug_data=fid.get('debug')
-        debug_matrix=np.array(debug_data)
 
         # read in features
         feature_data=fid.get('feature')
@@ -711,7 +672,7 @@ class ShockGraphDataset(Dataset):
         dims=np.array(dims)
         
         # remove normalization put in
-        F_matrix_unwrapped,mask=self.__unwrap_data(F_matrix,debug_matrix)
+        F_matrix_unwrapped,mask=self.__unwrap_data(F_matrix)
         
         # center of bounding box
         # will be a constant across

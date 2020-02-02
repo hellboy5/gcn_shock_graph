@@ -29,16 +29,17 @@ def classify_data(model,data_loader,n_classes):
     predicted=np.array([],dtype=np.int32)
     groundtruth=np.array([],np.int32)
     scores=np.empty((0,n_classes))
-    
-    for iter, (bg, label) in enumerate(data_loader):
-        output = model(bg)
-        probs_Y = torch.softmax(output, 1)
-        max_scores,estimate = torch.max(probs_Y, 1)
-        estimate=estimate.view(-1,1)
 
-        predicted=np.append(predicted,estimate.to("cpu").detach().numpy())
-        groundtruth=np.append(groundtruth,label.to("cpu"))
-        scores=np.append(scores,probs_Y.to("cpu").detach().numpy(),axis=0)
+    with torch.no_grad():
+        for iter, (bg, label) in enumerate(data_loader):
+            output = model(bg)
+            probs_Y = torch.softmax(output, 1)
+            max_scores,estimate = torch.max(probs_Y, 1)
+            estimate=estimate.view(-1,1)
+
+            predicted=np.append(predicted,estimate.to("cpu").detach().numpy())
+            groundtruth=np.append(groundtruth,label.to("cpu"))
+            scores=np.append(scores,probs_Y.to("cpu").detach().numpy(),axis=0)
 
     return groundtruth,predicted,scores
 
@@ -66,7 +67,7 @@ def main(args):
     epochs=args.epochs
     bdir=os.path.basename(train_dir)
  
-    prefix=args.ctype+'_sg_model_'+dataset+'_'+bdir+'_'+str(args.n_layers)+'_'+str(args.n_hidden)+'_'+str(args.hops)+'_'+args.readout
+    prefix=args.ctype+'_sg_model_'+dataset+'_'+bdir+'_'+str(args.n_layers)+'_'+str(args.n_hidden)+'_'+str(args.hops)+'_'+args.readout+'_'+str(app_io)
 
     if args.readout == 'spp':
         extra='_'+str(args.n_grid)
