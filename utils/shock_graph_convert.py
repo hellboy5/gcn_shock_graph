@@ -737,11 +737,12 @@ def compute_edge_stats():
                area=polyArea(np.array(totals[0]),np.array(totals[1]))
 
 
-          if len(plus_curve) and len(minus_curve):
-              if plus_curve[0][0] > minus_curve[0][0]:
-                  plus_totalCurvature,minus_totalCurvature=minus_totalCurvature,plus_totalCurvature
-                  plus_angle,minus_angle=minus_angle,plus_angle
-                  plus_length,minus_length=minus_length,plus_length
+          # Not sure if this is good revisit
+          # if len(plus_curve) and len(minus_curve):
+          #     if plus_curve[0][0] > minus_curve[0][0]:
+          #         plus_totalCurvature,minus_totalCurvature=minus_totalCurvature,plus_totalCurvature
+          #         plus_angle,minus_angle=minus_angle,plus_angle
+          #         plus_length,minus_length=minus_length,plus_length
               
           stats=CurveProps(SCurve=shock_totalCurvature,
                            SLength=shock_length,
@@ -870,9 +871,9 @@ def read_node_samples(sample_line,lines,sample_data,node_info):
           left_bnd_tangent  = fixAngleMPiPi_new(theta+phi-pi/2.0)
           right_bnd_tangent = fixAngleMPiPi_new(theta-phi+pi/2.0)
 
-          if left_bnd_pt[0] > right_bnd_pt[0]:
-              left_bnd_pt,right_bnd_pt = right_bnd_pt,left_bnd_pt
-              left_bnd_tangent,right_bnd_tangent = right_bnd_tangent,left_bnd_tangent
+          # if left_bnd_pt[0] > right_bnd_pt[0]:
+          #     left_bnd_pt,right_bnd_pt = right_bnd_pt,left_bnd_pt
+          #     left_bnd_tangent,right_bnd_tangent = right_bnd_tangent,left_bnd_tangent
 
           #get affected node data
           ids=samp_to_node_mapping[id]
@@ -1007,6 +1008,9 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
      #create feature matrix
      feature_matrix=np.zeros((numb_nodes,edge_features))
 
+     #create edge matrix
+     edge_matrices=np.zeros((numb_nodes,numb_nodes,10))
+
      #node locations
      locations =[]
      highest_degree_nodes=[]
@@ -1022,10 +1026,10 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
      #write out feature matrix
      for key in node_mapping:
           row=node_order[key]
-
+          
           order_list=[]
           for value in adj_nodes_mapping[key]:
-               order_list.append(node_mapping[value].pt[0][0])
+               order_list.append(node_mapping[value].radius[0])
           rad_list=np.argsort(order_list)
 
           # populate points of node location
@@ -1103,7 +1107,20 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
                if pair not in curve_stats.keys():
                     pair=(target,source)                        
                props=curve_stats[pair]
-                   
+               source_idx=node_order[int(pair[0])]
+               target_idx=node_order[int(pair[1])]
+
+               edge_matrices[source_idx,target_idx,0]=props.SCurve
+               edge_matrices[source_idx,target_idx,1]=props.SLength
+               edge_matrices[source_idx,target_idx,2]=props.SAngle
+               edge_matrices[source_idx,target_idx,3]=props.PCurve
+               edge_matrices[source_idx,target_idx,4]=props.PLength
+               edge_matrices[source_idx,target_idx,5]=props.PAngle
+               edge_matrices[source_idx,target_idx,6]=props.MCurve
+               edge_matrices[source_idx,target_idx,7]=props.MLength
+               edge_matrices[source_idx,target_idx,8]=props.MAngle
+               edge_matrices[source_idx,target_idx,9]=props.PolyArea
+
                feature_matrix[row][0+start]=props.SCurve
                feature_matrix[row][1+start]=props.SLength
                feature_matrix[row][2+start]=props.SAngle
@@ -1116,7 +1133,7 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
                feature_matrix[row][9+start]=props.PolyArea
                start=start+10
 
-     return adj_matrix,feature_matrix
+     return adj_matrix,feature_matrix,edge_matrices
     
 def convertEsfFile(esf_file,image_file,coarse):
 
@@ -1153,7 +1170,8 @@ def convertEsfFile(esf_file,image_file,coarse):
      compute_sorted_order()
 
          
-     adj_matrix,feature_matrix=compute_adj_feature_matrix(edge_features,NI,NJ)
+     adj_matrix,feature_matrix,edge_matrices=compute_adj_feature_matrix(
+         edge_features,NI,NJ)
 
      if coarse:
          print('Coarsening Graph')
@@ -1176,6 +1194,11 @@ def convertEsfFile(esf_file,image_file,coarse):
      hf.create_dataset('feature',data=feature_matrix)
      hf.create_dataset('adj_matrix',data=adj_matrix)
      hf.create_dataset('dims',data=dims)
+
+     for plane in range(edge_matrices.shape[-1]):
+         var='edge_chan_'+str(plane)
+         hf.create_dataset(var,data=edge_matrices[:,:,plane])
+         
      hf.close()
 
      
