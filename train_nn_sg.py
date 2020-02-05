@@ -17,7 +17,7 @@ import json
 import torch.nn.functional as F
 import argparse
 import torch.nn as nn
-from data.ShockGraphDataset import *
+from data.ShockGraphDataset_ef import *
 from models.nn_sg_model import Classifier
 from torch.utils.data import DataLoader
 from functools import partial
@@ -67,7 +67,7 @@ def main(args):
                        args.n_hidden,
                        n_classes,
                        args.n_layers,
-                       10,
+                       edge_dim,
                        args.aggregate,
                        args.residual,
                        args.readout,

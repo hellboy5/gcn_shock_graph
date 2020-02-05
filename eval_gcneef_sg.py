@@ -17,7 +17,7 @@ import json
 import torch.nn.functional as F
 import argparse
 import torch.nn as nn
-from data.ShockGraphDataset import *
+from data.ShockGraphDataset_ef import *
 from models.gcneef_sg_model import Classifier
 from torch.utils.data import DataLoader
 from functools import partial

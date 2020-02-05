@@ -18,9 +18,28 @@ import torch.nn.functional as F
 import argparse
 import torch.nn as nn
 from data.ShockGraphDataset_ef import *
-from models.gcneef_sg_model import Classifier
+from models.nn_sg_model import Classifier
 from torch.utils.data import DataLoader
 from functools import partial
+
+def classify_data(model,data_loader,n_classes):
+
+    predicted=np.array([],dtype=np.int32)
+    groundtruth=np.array([],np.int32)
+    scores=np.empty((0,n_classes))
+
+    with torch.no_grad():
+        for iter, (bg, label) in enumerate(data_loader):
+            output = model(bg)
+            probs_Y = torch.softmax(output, 1)
+            max_scores,estimate = torch.max(probs_Y, 1)
+            estimate=estimate.view(-1,1)
+
+            predicted=np.append(predicted,estimate.to("cpu").detach().numpy())
+            groundtruth=np.append(groundtruth,label.to("cpu"))
+            scores=np.append(scores,probs_Y.to("cpu").detach().numpy(),axis=0)
+
+    return groundtruth,predicted,scores
 
 def main(args):
 
@@ -32,6 +51,7 @@ def main(args):
     # create dataset
     config_file=json.load(open(args.cfg))
     train_dir=config_file['train_dir']
+    test_dir=config_file['test_dir']
     dataset=config_file['dataset']
     cache_io=config_file['cache_io']
     app_io=config_file['app']
@@ -47,7 +67,7 @@ def main(args):
     bdir=os.path.basename(train_dir)
 
     
-    prefix='gcneef_sg_model_'+dataset+'_'+bdir+'_'+str(args.n_layers)+'_'+str(args.n_hidden)+'_'+args.readout+'_'+str(app_io)+'_'+str(add_self_loop)
+    prefix='nn_sg_model_'+dataset+'_'+bdir+'_'+str(args.n_layers)+'_'+str(args.n_hidden)+'_'+args.readout+'_'+str(app_io)+'_'+str(add_self_loop)
 
     if args.readout == 'spp':
         extra='_'+str(args.n_grid)
@@ -56,61 +76,62 @@ def main(args):
     print('saving to prefix: ', prefix)
     
     # create train dataset
-    trainset=ShockGraphDataset(train_dir,dataset,app=app_io,cache=cache_io,symmetric=symm_io,data_augment=apply_da,grid=args.n_grid,self_loop=add_self_loop)
+    testset=ShockGraphDataset(test_dir,dataset,app=app_io,cache=cache_io,symmetric=symm_io,data_augment=apply_da,grid=args.n_grid,self_loop=add_self_loop,dsm_norm=False)
 
     # Use PyTorch's DataLoader and the collate function
     # defined before.
-    data_loader = DataLoader(trainset, batch_size=batch_io, shuffle=shuffle_io,
+    data_loader = DataLoader(testset, batch_size=batch_io, shuffle=shuffle_io,
                              collate_fn=partial(collate,device_name=device))
-    
-    model = Classifier(num_feats,
-                       args.n_hidden,
-                       n_classes,
-                       args.n_layers,
-                       edge_dim,
-                       args.aggregate,
-                       args.readout,
-                       F.relu,
-                       args.dropout,
-                       args.n_grid,
-                       device)
 
-    loss_func = nn.CrossEntropyLoss()
-     
-    # define the optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    model = model.to(device)
-    model.train()
+    model_files=glob.glob(prefix+'*pth')
+    model_files.sort()
     
-    print(model)
-    
-    epoch_losses = []
-    for epoch in tqdm(range(epochs)):
-        epoch_loss = 0
-        for iter, (bg, label) in enumerate(data_loader):            
-            prediction = model(bg)
-            loss = loss_func(prediction, label)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            epoch_loss += loss.detach().item()
-        epoch_loss /= (iter + 1)
-        epoch_losses.append(epoch_loss)
-        print('Epoch {}, loss {:.6f}'.format(epoch, epoch_loss))
+    for state_path in model_files:
+        print('Using weights: ',state_path)
 
-        if (epoch+1) % 25 == 0:
-            path=prefix+'_epoch_'+str(epoch+1).zfill(3)+'.pth'
-            torch.save({
-                'epoch': epoch,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'loss': epoch_loss}, path)
+        model = Classifier(num_feats,
+                           args.n_hidden,
+                           n_classes,
+                           args.n_layers,
+                           edge_dim,
+                           args.aggregate,
+                           args.residual,
+                           args.readout,
+                           F.relu,
+                           args.dropout,
+                           args.n_grid,
+                           device)
+
+        model.load_state_dict(torch.load(state_path)['model_state_dict'])
+        model.to(device)
+        model.eval()
+
+        groundtruth,predicted,scores=classify_data(model,data_loader,n_classes)
+        confusion_matrix=np.zeros((n_classes,n_classes))
+        for ind in range(0,groundtruth.shape[0]):
+            if groundtruth[ind]==predicted[ind]:
+                confusion_matrix[groundtruth[ind],groundtruth[ind]]+=1
+            else:
+                confusion_matrix[groundtruth[ind],predicted[ind]]+=1
+
+        confusion_matrix=(confusion_matrix/np.sum(confusion_matrix,1)[:,None])*100
+
+        #print(confusion_matrix)
+
+        mAP=np.diagonal(confusion_matrix)
+
+        print(mAP)
+        print("mAP: ",np.mean(mAP))
+        print('Accuracy of argmax predictedions on the test set: {:4f}%'.format(
+            (groundtruth == predicted).sum().item() / len(groundtruth) * 100))
+
+        del model
 
 
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='GCN+Exploiting Edge Features')
+    parser = argparse.ArgumentParser(description='NN Edge Features')
     
     parser.add_argument("--cfg", type=str, default='cfg/stl10_00.json',
                         help="configuration file for the dataset")
@@ -134,6 +155,8 @@ if __name__ == '__main__':
                         help="Readout type: mean/max/sum")
     parser.add_argument("--aggregate", type=str, default="mean",
                         help="Aggregate type: mean/max/sum")
+    parser.add_argument('--residual', action="store_true",
+                        help='add in residual')
     parser.add_argument("--n-grid", type=int, default=8,
                         help="number of grid cells")                                    
 
