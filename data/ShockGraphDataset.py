@@ -86,7 +86,7 @@ def fixAngle2PiPi_new_vector(vec):
 
 class ShockGraphDataset(Dataset):
     'Generates data for Keras'
-    def __init__(self,directory,dataset,app=False,cache=True,symmetric=False,data_augment=False,flip_pp=False,grid=8):
+    def __init__(self,directory,dataset,norm_factors,app=False,cache=True,symmetric=False,data_augment=False,flip_pp=False,grid=8):
         'Initialization'
         
         self.directory = directory
@@ -104,12 +104,12 @@ class ShockGraphDataset(Dataset):
         self.sg_features=[]
         self.trans=()
         self.factor=1
-        self.max_radius=1
         self.flip_pp=flip_pp
         self.data_augment=data_augment
         self.grid=grid
         self.grid_mapping=[]
-        
+        self.norm_factors=norm_factors
+
         if dataset=='cifar100':
             print('Using cifar 100 dataset')
             self.class_mapping=cifar100_map
@@ -413,11 +413,11 @@ class ShockGraphDataset(Dataset):
         # radius of shock point
         if absolute:
 
-            rad_scale=68.2340
-            angle_scale=713.8326
-            length_scale=116.8454
-            curve_scale=10.817794298253000
-            poly_scale=8272.887700675255
+            rad_scale=self.norm_factors['rad_scale']
+            angle_scale=self.norm_factors['angle_scale']
+            length_scale=self.norm_factors['length_scale']
+            curve_scale=self.norm_factors['curve_scale']
+            poly_scale=self.norm_factors['poly_scale']
 
             # scale shock radius
             F_matrix[:,2] /= rad_scale

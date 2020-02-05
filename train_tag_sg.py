@@ -40,11 +40,17 @@ def main(args):
     n_classes=config_file['num_classes']
     apply_da=config_file['data_augment']
     num_feats = config_file['features_dim']
+    rad_scale=config_file['rad_scale']
+    angle_scale=config_file['angle_scale']
+    length_scale=config_file['length_scale']
+    curve_scale=config_file['curve_scale']
+    poly_scale=config_file['poly_scale']
     batch_io=args.batch_size
     epochs=args.epochs
     bdir=os.path.basename(train_dir)
 
-    
+    norm_factors={'rad_scale':rad_scale,'angle_scale':angle_scale,'length_scale':length_scale,'curve_scale':curve_scale,'poly_scale':poly_scale}
+
     prefix=args.ctype+'_sg_model_'+dataset+'_'+bdir+'_'+str(args.n_layers)+'_'+str(args.n_hidden)+'_'+str(args.hops)+'_'+args.readout+'_'+str(app_io)
 
     if args.readout == 'spp':
@@ -54,7 +60,7 @@ def main(args):
     print('saving to prefix: ', prefix)
     
     # create train dataset
-    trainset=ShockGraphDataset(train_dir,dataset,app=app_io,cache=cache_io,symmetric=symm_io,data_augment=apply_da,grid=args.n_grid)
+    trainset=ShockGraphDataset(train_dir,dataset,norm_factors,app=app_io,cache=cache_io,symmetric=symm_io,data_augment=apply_da,grid=args.n_grid)
 
     # Use PyTorch's DataLoader and the collate function
     # defined before.
