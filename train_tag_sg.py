@@ -43,8 +43,9 @@ def main(args):
     batch_io=args.batch_size
     epochs=args.epochs
     bdir=os.path.basename(train_dir)
+
     
-    prefix=args.ctype+'_sg_model_'+dataset+'_'+bdir+'_'+str(args.n_layers)+'_'+str(args.n_hidden)+'_'+str(args.hops)+'_'+args.readout
+    prefix=args.ctype+'_sg_model_'+dataset+'_'+bdir+'_'+str(args.n_layers)+'_'+str(args.n_hidden)+'_'+str(args.hops)+'_'+args.readout+'_'+str(app_io)
 
     if args.readout == 'spp':
         extra='_'+str(args.n_grid)

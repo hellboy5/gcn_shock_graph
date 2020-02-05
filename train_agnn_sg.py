@@ -44,7 +44,7 @@ def main(args):
     epochs=args.epochs
     bdir=os.path.basename(train_dir)
     
-    prefix='agnn_sg_model_'+dataset+'_'+bdir+'_'+str(args.n_layers)+'_'+args.readout
+    prefix='agnn_sg_model_'+dataset+'_'+bdir+'_'+str(args.n_layers)+'_'+str(args.n_hidden)+'_'+args.readout
 
     if args.readout == 'spp':
         extra='_'+str(args.n_grid)
@@ -63,6 +63,7 @@ def main(args):
     print('A AGNN Graph Classifier is being trained')
     
     model = Classifier(num_feats,
+                       args.n_hidden,
                        n_classes,
                        args.n_layers,
                        args.init_beta,
@@ -122,6 +123,8 @@ if __name__ == '__main__':
                         help="dropout probability")
     parser.add_argument("--lr", type=float, default=1e-2,
                         help="learning rate")
+    parser.add_argument("--n-hidden", type=int, default=512,
+                        help="number of hidden gsage units")
     parser.add_argument("--n-layers", type=int, default=2,
                         help="number of hidden gcn layers")
     parser.add_argument("--weight-decay", type=float, default=5e-4,
