@@ -73,9 +73,9 @@ def main(args):
     bdir=os.path.basename(train_dir)
 
     norm_factors={'rad_scale':rad_scale,'angle_scale':angle_scale,'length_scale':length_scale,'curve_scale':curve_scale,'poly_scale':poly_scale}
-        
-    prefix=args.ctype+'_sg_model_'+dataset+'_'+bdir+'_'+str(args.n_layers)+'_'+str(args.n_hidden)+'_'+str(args.hops)+'_'+args.readout+'_'+str(app_io)
 
+    prefix=args.ctype+'_sg_model_'+dataset+'_'+bdir+'_'+str(args.n_layers)+'_'+str(args.n_hidden)+'_'+str(args.hops)+'_'+args.readout+'_'+str(args.dropout)+'_'+str(app_io)
+    
     if args.readout == 'spp':
         extra='_'+str(args.n_grid)
         prefix+=extra
