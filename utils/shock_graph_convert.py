@@ -9,7 +9,7 @@ import networkx as nx
 import argparse
 #import matplotlib.pyplot as plt
 import copy
-
+from shape_context import SC
 from collections import defaultdict
 from collections import namedtuple
 from math import acos
@@ -18,6 +18,7 @@ from math import cos
 from math import sin
 from operator import itemgetter
 from scipy.spatial.distance import cdist
+from scipy import ndimage
 
 node_order=dict()
 order_mapping=dict()
@@ -37,6 +38,78 @@ revisit_nodes=set()
 ZERO_TOLERANCE=1E-1
 
 
+def get_pixel_values(F_matrix,color_space):
+    
+    pixel_values=np.zeros((F_matrix.shape[0],21),dtype=np.float32)
+    
+    zero_set=np.array([0.0,0.0])
+    zcoord=np.array([0,1,2])
+    for f in range(F_matrix.shape[0]):
+        sg_xcoord=np.repeat(F_matrix[f,0],3)
+        sg_ycoord=np.repeat(F_matrix[f,1],3)
+        sg_cs=ndimage.map_coordinates(color_space,[sg_xcoord,sg_ycoord,zcoord])
+        pixel_values[f,:3]=sg_cs
+            
+            
+        bp1_xcoord=np.repeat(F_matrix[f,9],3)
+        bp1_ycoord=np.repeat(F_matrix[f,10],3)
+        bp1_cs=ndimage.map_coordinates(color_space,[bp1_xcoord,bp1_ycoord,zcoord])
+        pixel_values[f,3:6]=bp1_cs
+
+        bp1_xcoord=np.repeat(F_matrix[f,15],3)
+        bp1_ycoord=np.repeat(F_matrix[f,16],3)
+        bp1_cs=ndimage.map_coordinates(color_space,[bp1_xcoord,bp1_ycoord,zcoord])
+        pixel_values[f,12:15]=bp1_cs
+
+        if np.array_equal(F_matrix[f,11:13],zero_set)==False:
+            bp2_xcoord=np.repeat(F_matrix[f,11],3)
+            bp2_ycoord=np.repeat(F_matrix[f,12],3)
+            bp2_cs=ndimage.map_coordinates(color_space,[bp2_xcoord,bp2_ycoord,zcoord])
+            pixel_values[f,6:9]=bp2_cs
+
+            bp2_xcoord=np.repeat(F_matrix[f,17],3)
+            bp2_ycoord=np.repeat(F_matrix[f,18],3)
+            bp2_cs=ndimage.map_coordinates(color_space,[bp2_xcoord,bp2_ycoord,zcoord])
+            pixel_values[f,15:18]=bp2_cs
+
+        if np.array_equal(F_matrix[f,13:15],zero_set)==False:
+            bp3_xcoord=np.repeat(F_matrix[f,13],3)
+            bp3_ycoord=np.repeat(F_matrix[f,14],3)
+            bp3_cs=ndimage.map_coordinates(color_space,[bp3_xcoord,bp3_ycoord,zcoord])
+            pixel_values[f,9:12]=bp3_cs
+
+            bp3_xcoord=np.repeat(F_matrix[f,19],3)
+            bp3_ycoord=np.repeat(F_matrix[f,20],3)
+            bp3_cs=ndimage.map_coordinates(color_space,[bp3_xcoord,bp3_ycoord,zcoord])
+            pixel_values[f,18:21]=bp3_cs
+
+    return pixel_values
+
+
+def read_cemv_file(fid):
+
+    con_points=[]
+    file=open(fid,'r')
+    lines= file.read().splitlines() 
+    start = [s for s,e in enumerate(lines) if e == '[BEGIN CONTOUR]']
+    for c in start:
+        numb_points=int(lines[c+1].split('=')[1])
+        start=c+2
+        for idx in range(start,start+numb_points):
+            b_start=lines[idx].rfind('[')
+            b_stop=lines[idx].rfind(']')
+            point=lines[idx][b_start+1:b_stop].split(',')
+            x=float(point[0])
+            y=float(point[1])
+            con_points.append((x,y))
+
+
+    file.close()
+    return con_points
+
+
+
+    
 def coarsen_graph(paths):
 
 
@@ -1135,13 +1208,15 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
 
      return adj_matrix,feature_matrix,edge_matrices
     
-def convertEsfFile(esf_file,image_file,coarse):
+def convertEsfFile(esf_file,image_file,con_file,coarse):
 
      I=scipy.misc.imread(image_file)
      NI=I.shape[0]
      NJ=I.shape[1]
      dims=np.array([NI,NJ])
-     
+
+     con_points=read_cemv_file(con_file)
+          
      file=open(esf_file,'r')
      lines= file.read().splitlines() 
 
@@ -1173,6 +1248,16 @@ def convertEsfFile(esf_file,image_file,coarse):
      adj_matrix,feature_matrix,edge_matrices=compute_adj_feature_matrix(
          edge_features,NI,NJ)
 
+     # get shape context
+     a = SC()
+     query=list(map(tuple,feature_matrix[:,:2]))
+     P=a.compute(query,con_points)
+
+     # get colors
+     colors=get_pixel_values(feature_matrix,I)
+     
+     feature_matrix=np.concatenate((feature_matrix,P,colors),axis=1)
+     
      if coarse:
          print('Coarsening Graph')
          G,paths=get_paths(adj_matrix)
@@ -1195,20 +1280,21 @@ def convertEsfFile(esf_file,image_file,coarse):
      hf.create_dataset('adj_matrix',data=adj_matrix)
      hf.create_dataset('dims',data=dims)
 
-     for plane in range(edge_matrices.shape[-1]):
-         var='edge_chan_'+str(plane)
-         hf.create_dataset(var,data=edge_matrices[:,:,plane])
+     # for plane in range(edge_matrices.shape[-1]):
+     #     var='edge_chan_'+str(plane)
+     #     hf.create_dataset(var,data=edge_matrices[:,:,plane])
          
      hf.close()
-
      
 if __name__ == '__main__':
      parser = argparse.ArgumentParser(description='Convert SG File')
 
      parser.add_argument("--esf",type=str,help='Shock Graph file')
      parser.add_argument("--image",type=str,help='Image File')
+     parser.add_argument("--con",type=str,help='Contour File')
      parser.add_argument("--coarse",type=bool,default=False,
                          help="Coarse graph with only degree 1 and 3 nodes")
      args=parser.parse_args()
      
-     convertEsfFile(args.esf,args.image,args.coarse)
+     convertEsfFile(args.esf,args.image,args.con,args.coarse)
+     

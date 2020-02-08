@@ -23,7 +23,7 @@ def get_angle(p1,p2):
 class SC(object):
 
 
-    def __init__(self,nbins_r=5,nbins_theta=12,r_inner=0.1250,r_outer=2.0):
+    def __init__(self,nbins_r=5,nbins_theta=12,r_inner=0.1250,r_outer=1.0):
         self.nbins_r        = nbins_r
         self.nbins_theta    = nbins_theta
         self.r_inner        = r_inner
@@ -39,11 +39,11 @@ class SC(object):
         return result
         
         
-    def _get_angles(self, x):
-        result = zeros((len(x), len(x)))
+    def _get_angles(self, x, c):
+        result = zeros((len(x), len(c)))
         for i in xrange(len(x)):
-            for j in xrange(len(x)):
-                result[i,j] = get_angle(x[i],x[j])
+            for j in xrange(len(c)):
+                result[i,j] = get_angle(x[i],c[j])
         return result
         
     
@@ -56,21 +56,20 @@ class SC(object):
         return mean
 
         
-    def compute(self,points,r=None):
+    def compute(self,query,points,r=None):
         t = time.time()
-        r_array = self._dist2(points,points)
+        r_array = self._dist2(query,points)
         mean_dist = r_array.mean()
         r_array_n = r_array / mean_dist
-        
-        r_bin_edges = logspace(log10(self.r_inner),log10(self.r_outer),self.nbins_r)  
 
-        r_array_q = zeros((len(points),len(points)), dtype=int)
+        r_bin_edges = logspace(log10(self.r_inner),log10(self.r_outer),self.nbins_r)  
+        r_array_q = zeros((len(query),len(points)), dtype=int)
         for m in xrange(self.nbins_r):
            r_array_q +=  (r_array_n < r_bin_edges[m])
 
         fz = r_array_q > 0
         
-        theta_array = self._get_angles(points)
+        theta_array = self._get_angles(query,points)
         # 2Pi shifted
         theta_array_2 = theta_array + 2*math.pi * (theta_array < 0)
         theta_array_q = 1 + floor(theta_array_2 /(2 * math.pi / self.nbins_theta))
@@ -82,8 +81,8 @@ class SC(object):
         ################################################################################
 
         
-        BH = zeros((len(points),self.nbins))
-        for i in xrange(len(points)):
+        BH = zeros((len(query),self.nbins))
+        for i in xrange(len(query)):
             sn = zeros((self.nbins_r, self.nbins_theta))
             for j in xrange(len(points)):
                 if (fz[i, j]):
