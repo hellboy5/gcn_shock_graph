@@ -1250,7 +1250,9 @@ def convertEsfFile(esf_file,image_file,con_file,coarse):
 
      # get shape context
      a = SC()
-     query=list(map(tuple,feature_matrix[:,:2]))
+     sg_points=np.copy(feature_matrix[:,:2])
+     sg_points[np.abs(sg_points)<1.0e-10]=0.0
+     query=list(map(tuple,sg_points))
      P=a.compute(query,con_points)
 
      # get colors
