@@ -40,7 +40,7 @@ ZERO_TOLERANCE=1E-1
 
 def get_pixel_values(F_matrix,color_space):
 
-    if len(color_space.shape):
+    if len(color_space.shape) == 2:
         print('gray scale converting to color')
         color_space=np.repeat(color_space[:,:,np.newaxis],3,axis=2)
 
