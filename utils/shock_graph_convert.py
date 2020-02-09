@@ -39,7 +39,11 @@ ZERO_TOLERANCE=1E-1
 
 
 def get_pixel_values(F_matrix,color_space):
-    
+
+    if len(color_space.shape):
+        print('gray scale converting to color')
+        color_space=np.repeat(color_space[:,:,np.newaxis],3,axis=2)
+
     pixel_values=np.zeros((F_matrix.shape[0],21),dtype=np.float32)
     
     zero_set=np.array([0.0,0.0])
