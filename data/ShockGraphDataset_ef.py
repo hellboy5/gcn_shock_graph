@@ -19,6 +19,8 @@ from collections import defaultdict
 from scipy.spatial.distance import cdist
 from sklearn.preprocessing import normalize
 
+fmnist_map={'top':0,'trouser':1,'pullover':2,'dress':3,'coat':4,'sandal':5,'shirt':6,'sneaker':7,'bag':8,'ankleboot':9}
+
 stl10_map={'airplane':0, 'bird':1,'car':2,'cat':3,'deer':4,'dog':5,'horse':6,'monkey':7,'ship':8,'truck':9}
 
 cifar100_map={'couch': 25, 'pine_tree': 59, 'butterfly': 14, 'mountain': 49, 'bus': 13, 'sunflower': 82, 'beetle': 7, 'lamp': 40, 'can': 16, 'beaver': 4, 'bee': 6, 'elephant': 31, 'kangaroo': 38, 'oak_tree': 52, 'orchid': 54, 'trout': 91, 'pickup_truck': 58, 'chimpanzee': 21, 'worm': 99, 'snail': 77, 'television': 87, 'hamster': 36, 'squirrel': 80, 'lion': 43, 'otter': 55, 'shrew': 74, 'pear': 57, 'turtle': 93, 'seal': 72, 'plate': 61, 'fox': 34, 'train': 90, 'porcupine': 63, 'tulip': 92, 'keyboard': 39, 'orange': 53, 'possum': 64, 'cattle': 19, 'skyscraper': 76, 'bear': 3, 'cup': 28, 'cockroach': 24, 'caterpillar': 18, 'mouse': 50, 'forest': 33, 'rabbit': 65, 'aquarium_fish': 1, 'chair': 20, 'castle': 17, 'palm_tree': 56, 'telephone': 86, 'mushroom': 51, 'streetcar': 81, 'willow_tree': 96, 'man': 46, 'wardrobe': 94, 'bowl': 10, 'sweet_pepper': 83, 'maple_tree': 47, 'snake': 78, 'whale': 95, 'poppy': 62, 'tank': 85, 'bed': 5, 'rose': 70, 'crocodile': 27, 'raccoon': 66, 'tractor': 89, 'bicycle': 8, 'bridge': 12, 'dinosaur': 29, 'crab': 26, 'clock': 22, 'bottle': 9, 'lawn_mower': 41, 'road': 68, 'spider': 79, 'skunk': 75, 'tiger': 88, 'sea': 71, 'lizard': 44, 'cloud': 23, 'ray': 67, 'house': 37, 'lobster': 45, 'boy': 11, 'plain': 60, 'table': 84, 'dolphin': 30, 'camel': 15, 'rocket': 69, 'baby': 2, 'girl': 35, 'shark': 73, 'motorcycle': 48, 'flatfish': 32, 'leopard': 42, 'wolf': 97, 'apple': 0, 'woman': 98}
@@ -58,6 +60,206 @@ office31_map={'back_pack':0,
               'trash_can':30}
 
 
+tign_map={'n01443537':0,
+          'n01629819':1,
+          'n01641577':2,
+          'n01644900':3,
+          'n01698640':4,
+          'n01742172':5,
+          'n01768244':6,
+          'n01770393':7,
+          'n01774384':8,
+          'n01774750':9,
+          'n01784675':10,
+          'n01855672':11,
+          'n01882714':12,
+          'n01910747':13,
+          'n01917289':14,
+          'n01944390':15,
+          'n01945685':16,
+          'n01950731':17,
+          'n01983481':18,
+          'n01984695':19,
+          'n02002724':20,
+          'n02056570':21,
+          'n02058221':22,
+          'n02074367':23,
+          'n02085620':24,
+          'n02094433':25,
+          'n02099601':26,
+          'n02099712':27,
+          'n02106662':28,
+          'n02113799':29,
+          'n02123045':30,
+          'n02123394':31,
+          'n02124075':32,
+          'n02125311':33,
+          'n02129165':34,
+          'n02132136':35,
+          'n02165456':36,
+          'n02190166':37,
+          'n02206856':38,
+          'n02226429':39,
+          'n02231487':40,
+          'n02233338':41,
+          'n02236044':42,
+          'n02268443':43,
+          'n02279972':44,
+          'n02281406':45,
+          'n02321529':46,
+          'n02364673':47,
+          'n02395406':48,
+          'n02403003':49,
+          'n02410509':50,
+          'n02415577':51,
+          'n02423022':52,
+          'n02437312':53,
+          'n02480495':54,
+          'n02481823':55,
+          'n02486410':56,
+          'n02504458':57,
+          'n02509815':58,
+          'n02666196':59,
+          'n02669723':60,
+          'n02699494':61,
+          'n02730930':62,
+          'n02769748':63,
+          'n02788148':64,
+          'n02791270':65,
+          'n02793495':66,
+          'n02795169':67,
+          'n02802426':68,
+          'n02808440':69,
+          'n02814533':70,
+          'n02814860':71,
+          'n02815834':72,
+          'n02823428':73,
+          'n02837789':74,
+          'n02841315':75,
+          'n02843684':76,
+          'n02883205':77,
+          'n02892201':78,
+          'n02906734':79,
+          'n02909870':80,
+          'n02917067':81,
+          'n02927161':82,
+          'n02948072':83,
+          'n02950826':84,
+          'n02963159':85,
+          'n02977058':86,
+          'n02988304':87,
+          'n02999410':88,
+          'n03014705':89,
+          'n03026506':90,
+          'n03042490':91,
+          'n03085013':92,
+          'n03089624':93,
+          'n03100240':94,
+          'n03126707':95,
+          'n03160309':96,
+          'n03179701':97,
+          'n03201208':98,
+          'n03250847':99,
+          'n03255030':100,
+          'n03355925':101,
+          'n03388043':102,
+          'n03393912':103,
+          'n03400231':104,
+          'n03404251':105,
+          'n03424325':106,
+          'n03444034':107,
+          'n03447447':108,
+          'n03544143':109,
+          'n03584254':110,
+          'n03599486':111,
+          'n03617480':112,
+          'n03637318':113,
+          'n03649909':114,
+          'n03662601':115,
+          'n03670208':116,
+          'n03706229':117,
+          'n03733131':118,
+          'n03763968':119,
+          'n03770439':120,
+          'n03796401':121,
+          'n03804744':122,
+          'n03814639':123,
+          'n03837869':124,
+          'n03838899':125,
+          'n03854065':126,
+          'n03891332':127,
+          'n03902125':128,
+          'n03930313':129,
+          'n03937543':130,
+          'n03970156':131,
+          'n03976657':132,
+          'n03977966':133,
+          'n03980874':134,
+          'n03983396':135,
+          'n03992509':136,
+          'n04008634':137,
+          'n04023962':138,
+          'n04067472':139,
+          'n04070727':140,
+          'n04074963':141,
+          'n04099969':142,
+          'n04118538':143,
+          'n04133789':144,
+          'n04146614':145,
+          'n04149813':146,
+          'n04179913':147,
+          'n04251144':148,
+          'n04254777':149,
+          'n04259630':150,
+          'n04265275':151,
+          'n04275548':152,
+          'n04285008':153,
+          'n04311004':154,
+          'n04328186':155,
+          'n04356056':156,
+          'n04366367':157,
+          'n04371430':158,
+          'n04376876':159,
+          'n04398044':160,
+          'n04399382':161,
+          'n04417672':162,
+          'n04456115':163,
+          'n04465501':164,
+          'n04486054':165,
+          'n04487081':166,
+          'n04501370':167,
+          'n04507155':168,
+          'n04532106':169,
+          'n04532670':170,
+          'n04540053':171,
+          'n04560804':172,
+          'n04562935':173,
+          'n04596742':174,
+          'n04597913':175,
+          'n06596364':176,
+          'n07579787':177,
+          'n07583066':178,
+          'n07614500':179,
+          'n07615774':180,
+          'n07695742':181,
+          'n07711569':182,
+          'n07715103':183,
+          'n07720875':184,
+          'n07734744':185,
+          'n07747607':186,
+          'n07749582':187,
+          'n07753592':188,
+          'n07768694':189,
+          'n07871810':190,
+          'n07873807':191,
+          'n07875152':192,
+          'n07920052':193,
+          'n09193705':194,
+          'n09246464':195,
+          'n09256479':196,
+          'n09332890':197,
+          'n09428293':198,
+          'n12267677':199}
 
 def fixAngleMPiPi_new_vector(vec):
     output=np.zeros(np.shape(vec))
@@ -87,7 +289,7 @@ def fixAngle2PiPi_new_vector(vec):
 
 class ShockGraphDataset(Dataset):
     'Generates data for Keras'
-    def __init__(self,directory,dataset,app=False,cache=True,symmetric=False,data_augment=False,flip_pp=False,grid=8,self_loop=False,dsm_norm=True):
+    def __init__(self,directory,dataset,norm_factors,app=False,cache=True,symmetric=False,data_augment=False,flip_pp=False,grid=8,self_loop=False,dsm_norm=True):
         'Initialization'
         
         self.directory = directory
@@ -105,14 +307,15 @@ class ShockGraphDataset(Dataset):
         self.sg_features=[]
         self.trans=()
         self.factor=1
-        self.max_radius=1
         self.flip_pp=flip_pp
         self.data_augment=data_augment
         self.grid=grid
         self.grid_mapping=[]
         self.self_loop=self_loop
         self.dsm_norm=dsm_norm
-        
+        self.norm_factors=norm_factors
+        self.dataset=dataset
+
         if dataset=='cifar100':
             print('Using cifar 100 dataset')
             self.class_mapping=cifar100_map
@@ -122,6 +325,12 @@ class ShockGraphDataset(Dataset):
         elif dataset=='imageclef':
             print('Using image-clef dataset')
             self.class_mapping=imageclef_map
+        elif dataset=='fmnist':
+            print('Using fmnist dataset')
+            self.class_mapping=fmnist_map
+        elif dataset=='tign':
+            print('Using tiny imagenet dataset')
+            self.class_mapping=tign_map
         else:
             print('Using office 31 dataset')
             self.class_mapping=office31_map
@@ -144,7 +353,7 @@ class ShockGraphDataset(Dataset):
         if self.cache:
             graph=self.sg_graphs[index]
             F_matrix=np.copy(features[0])
-            F_matrix=self.__recenter(F_matrix,absolute=True)
+            #F_matrix=self.__recenter(F_matrix,absolute=True)
             graph.ndata['h']=torch.from_numpy(F_matrix)
         else:        
             adj_matrix=self.adj_matrices[index]        
@@ -155,7 +364,7 @@ class ShockGraphDataset(Dataset):
                 new_adj=adj_matrix
                 new_F=features[0]
                 spp_map=self.__compute_spp_map(new_F,self.grid)
-                self.__recenter(new_F,absolute=True)
+                #self.__recenter(new_F,absolute=True)
 
             graph=self.__create_graph(new_adj)
             graph.ndata['h']=torch.from_numpy(new_F)
@@ -234,15 +443,27 @@ class ShockGraphDataset(Dataset):
         for fid in tqdm(self.files):
             adj_matrix,features,edge_features=self.__read_shock_graph(fid)
 
+
+            
             obj=os.path.basename(fid)
-            obj=re.split(r'[0-9].*',obj)[0]
-            class_name=obj[:obj.rfind('_')]
+            if self.dataset=='tign':
+                class_name=obj[:obj.find('_')]
+            else:
+                obj=re.split(r'[0-9].*',obj)[0]
+                class_name=obj[:obj.rfind('_')]
+
             label=self.class_mapping[class_name]
             grid_cell=self.__compute_spp_map(features[0],self.grid)
+
+            self.__recenter(features[0],absolute=True)
+            
+            F_pruned=np.delete(features[0],np.s_[28:features[0].shape[1]],1)
+            adj_pruned=np.delete(features[1],np.s_[28:features[1].shape[1]],1)
+            new_tuple=(F_pruned,adj_pruned)
             
             self.adj_matrices.append(adj_matrix)
             self.sg_labels.append(label)
-            self.sg_features.append(features)
+            self.sg_features.append(new_tuple)
             self.grid_mapping.append(grid_cell)
             
             if self.cache:
@@ -430,11 +651,11 @@ class ShockGraphDataset(Dataset):
         # radius of shock point
         if absolute:
 
-            rad_scale=68.2340
-            angle_scale=713.8326
-            length_scale=116.8454
-            curve_scale=10.817794298253000
-            poly_scale=8272.887700675255
+            rad_scale=self.norm_factors['rad_scale']
+            angle_scale=self.norm_factors['angle_scale']
+            length_scale=self.norm_factors['length_scale']
+            curve_scale=self.norm_factors['curve_scale']
+            poly_scale=self.norm_factors['poly_scale']
  
             # scale shock radius
             F_matrix[:,2] /= rad_scale
@@ -598,11 +819,7 @@ class ShockGraphDataset(Dataset):
 
         F_matrix[:,:2] /= factor
         F_matrix[:,9:15] /= factor
-        F_matrix[:,15:21] /= factor
-
-        F_matrix=np.delete(F_matrix,np.s_[28:F_matrix.shape[1]],1)
-        return F_matrix
-        
+        F_matrix[:,15:21] /= factor        
 
     def __prune_ob(self,F_matrix,adj_matrix,mask,scale):
 
@@ -689,12 +906,11 @@ class ShockGraphDataset(Dataset):
 
         edge_features=[]
 
-        rad_scale=68.2340
-        angle_scale=713.8326
-        length_scale=116.8454
-        curve_scale=10.817794298253000
-        poly_scale=8272.887700675255
-
+        rad_scale=self.norm_factors['rad_scale']
+        angle_scale=self.norm_factors['angle_scale']
+        length_scale=self.norm_factors['length_scale']
+        curve_scale=self.norm_factors['curve_scale']
+        poly_scale=self.norm_factors['poly_scale']
 
         # read in edge channel data
         ec0_data=fid.get('edge_chan_0')
@@ -764,7 +980,7 @@ class ShockGraphDataset(Dataset):
         
         # remove normalization put in
         F_matrix_unwrapped,mask=self.__unwrap_data(F_matrix)
-        
+
         # center of bounding box
         # will be a constant across
         self.width=(F_matrix_unwrapped[1,1]-F_matrix_unwrapped[0,1])
@@ -816,7 +1032,7 @@ class ShockGraphDataset(Dataset):
 
         # # resort to be safe
         # new_adj_matrix,new_F_matrix,new_mask=self.__compute_sorted_order(F_combined_pruned,adj_matrix_pruned,mask_pruned)
-            
+
         return adj_matrix,(F_combined,mask),edge_features
 
 
@@ -827,7 +1043,7 @@ class ShockGraphDataset(Dataset):
         G.add_nodes(adj_matrix.shape[0])
         G.set_n_initializer(dgl.init.zero_initializer)
  
-        for row in range(adj_matrix.shape[0]):
+        for row in range(0,adj_matrix.shape[0]):
             neighbors=adj_matrix[row,:]
             target=np.nonzero(neighbors)[0]
             source=np.zeros(target.shape)+row

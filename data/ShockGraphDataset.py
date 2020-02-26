@@ -17,6 +17,13 @@ from scipy import ndimage
 from operator import itemgetter
 from collections import defaultdict
 from scipy.spatial.distance import cdist
+from sklearn.preprocessing import normalize
+
+import sys
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from utils.shape_context import SC
 
 fmnist_map={'top':0,'trouser':1,'pullover':2,'dress':3,'coat':4,'sandal':5,'shirt':6,'sneaker':7,'bag':8,'ankleboot':9}
 
@@ -349,7 +356,7 @@ class ShockGraphDataset(Dataset):
         if self.cache:
             graph=self.sg_graphs[index]
             F_matrix=np.copy(features[0])
-            self.__recenter(F_matrix,absolute=True)
+            #self.__recenter(F_matrix,absolute=True)
             graph.ndata['h']=torch.from_numpy(F_matrix)
             
         else:        
@@ -361,13 +368,58 @@ class ShockGraphDataset(Dataset):
                 new_adj=adj_matrix
                 new_F=features[0]
                 spp_map=self.__compute_spp_map(new_F,self.grid)
-                self.__recenter(new_F,absolute=True)
+                #self.__recenter(new_F,absolute=True)
 
             graph=self.__create_graph(new_adj)
             graph.ndata['h']=torch.from_numpy(new_F)
 
         graph.ndata['x']=torch.from_numpy(spp_map)
         return graph,label
+
+    def __swap(self,M):
+        flip=random.randint(0,1)
+        flip=self.flip_pp
+        if flip:
+            M[:,[15,9]]=M[:,[9,15]]
+            M[:,[16,10]]=M[:,[10,16]]
+            M[:,[17,11]]=M[:,[11,17]]
+            M[:,[18,12]]=M[:,[12,18]]
+            M[:,[19,13]]=M[:,[13,19]]
+            M[:,[20,14]]=M[:,[14,20]]
+            M[:,[24,21]]=M[:,[21,24]]
+            M[:,[25,22]]=M[:,[22,25]]
+            M[:,[26,23]]=M[:,[23,26]]
+            M[:,[34,31]]=M[:,[31,34]]
+            M[:,[35,32]]=M[:,[32,35]]
+            M[:,[36,33]]=M[:,[33,36]]
+            M[:,[44,41]]=M[:,[41,44]]
+            M[:,[45,42]]=M[:,[42,45]]
+            M[:,[46,43]]=M[:,[43,46]]
+            M[:,[54,51]]=M[:,[51,54]]
+            M[:,[55,52]]=M[:,[52,55]]
+            M[:,[56,53]]=M[:,[53,56]]
+            
+    def __read_cemv_file(self,fid):
+
+        con_points=[]
+        file=open(fid,'r')
+        lines= file.read().splitlines() 
+        start = [s for s,e in enumerate(lines) if e == '[BEGIN CONTOUR]']
+        for c in start:
+            numb_points=int(lines[c+1].split('=')[1])
+            start=c+2
+            for idx in range(start,start+numb_points):
+                b_start=lines[idx].rfind('[')
+                b_stop=lines[idx].rfind(']')
+                point=lines[idx][b_start+1:b_stop].split(',')
+                x=float(point[0])
+                y=float(point[1])
+                con_points.append((x,y))
+
+
+        file.close()
+
+        return con_points
 
     def __preprocess_adj_numpy(self,adj, symmetric=True):
         adj = adj + np.eye(adj.shape[0])
@@ -435,6 +487,8 @@ class ShockGraphDataset(Dataset):
             label=self.class_mapping[class_name]
             grid_cell=self.__compute_spp_map(features[0],self.grid)
 
+            self.__recenter(features[0],absolute=True)
+            
             self.adj_matrices.append(adj_matrix)
             self.sg_labels.append(label)
             self.sg_features.append(features)
@@ -871,9 +925,42 @@ class ShockGraphDataset(Dataset):
     def __read_shock_graph(self,sg_file):
         fid=h5py.File(sg_file,'r')
 
+        # read cemv file
+        # suffix=os.path.basename(sg_file)
+        # sdir=os.path.dirname(sg_file)
+        # prefix=suffix[:suffix.find('-')]
+        # cemv_file=sdir+'/'+prefix+'.cemv'
+        # con_points=self.__read_cemv_file(cemv_file)
+
+        
         # read in features
         feature_data=fid.get('feature')
         F_matrix=np.array(feature_data).astype(np.float32)
+        F_matrix=F_matrix[:,:58]
+
+        # get shape context
+        # a = SC()
+        # sg_points=np.copy(F_matrix[:,:2])
+        # sg_points[np.abs(sg_points)<1.0e-10]=0.0
+        # query=list(map(tuple,sg_points))
+        # sc_features=a.compute(query,con_points)
+        # norm_SC=normalize(sc_features,norm='l1').astype(np.float32)
+        # F_matrix=np.concatenate((F_matrix[:,:58],norm_SC),axis=1)
+
+        # sg_features=F_matrix[:,:58]
+        # color_features=F_matrix[:,118:139]/255.0
+        # F_matrix=np.concatenate((sg_features,color_features),axis=1)
+
+        # orig=F_matrix[:,58:118]
+        # flag=np.array_equal(orig,P)
+        # if flag == False:
+        #     np.savetxt('orig.txt',orig)
+        #     np.savetxt('new.txt',P)
+        #     exit()
+        # print(np.max(np.abs(orig-P)))
+        # norm_SC=normalize(SC,norm='l1')
+        # F_matrix[:,58:118]=norm_SC
+        # F_matrix=F_matrix[:,:118]
         
         # read in adj matrix
         adj_data=fid.get('adj_matrix')
