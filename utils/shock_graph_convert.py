@@ -38,6 +38,11 @@ revisit_nodes=set()
 ZERO_TOLERANCE=1E-1
 
 def get_frag_average_color(coords,color_space):
+
+    if len(color_space.shape) == 2:
+        print('gray scale converting to color')
+        color_space=np.repeat(color_space[:,:,np.newaxis],3,axis=2)
+
     plus_points=coords[:,:2]
     minus_poitns=coords[:,2:4]
     points=np.vstack((coords[:,:2],coords[:,2:4]))
