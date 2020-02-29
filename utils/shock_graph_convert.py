@@ -31,12 +31,27 @@ edge_mapping=defaultdict(list)
 adj_nodes_mapping=defaultdict(list)
 Sample=namedtuple('Sample','id pt type radius theta speed phi plus_pt \
 minus_pt plus_theta minus_theta')
-CurveProps=namedtuple('CurveProps','SCurve SLength SAngle PCurve PLength PAngle MCurve MLength MAngle PolyArea')
+CurveProps=namedtuple('CurveProps','SCurve SLength SAngle PCurve PLength PAngle MCurve MLength MAngle PolyArea AvgColor')
 highest_degree=0
 special_2_nodes=set()
 revisit_nodes=set()
 ZERO_TOLERANCE=1E-1
 
+def get_frag_average_color(coords,color_space):
+    plus_points=coords[:,:2]
+    minus_poitns=coords[:,2:4]
+    points=np.vstack((coords[:,:2],coords[:,2:4]))
+    points=np.tile(points,[1,3])
+
+    xcoord=points[:,[0,2,4]]
+    ycoord=points[:,[1,3,5]]
+    zcoord=np.tile([0,1,2],[xcoord.shape[0],1])
+
+    plus_cs=ndimage.map_coordinates(color_space,[xcoord,ycoord,zcoord],mode='nearest')
+
+    avg_value=np.mean(plus_cs,axis=0)
+    
+    return avg_value
 
 def get_pixel_values(F_matrix,color_space):
 
@@ -771,18 +786,63 @@ def computeCurveStats(curve):
 
      return length,totalCurvature,totalAngleChange
 
+def sample_fragment(shock,theta,phi,radius):
 
-def compute_edge_stats():
+    spacing=[0.0,0.2,0.4,0.6,0.8]
+    sample_points=np.array([]).reshape(0,4)
+    for idx in range(len(shock)):
 
-    
+        ray_points=np.zeros((len(spacing),4))
+        for jdx in range(len(spacing)):
+            left_bnd_pt  = translatePoint(shock[idx],theta[idx]+phi[idx], spacing[jdx]*radius[idx])
+            right_bnd_pt = translatePoint(shock[idx],theta[idx]-phi[idx], spacing[jdx]*radius[idx])
+            ray_points[jdx,0]=left_bnd_pt[0]
+            ray_points[jdx,1]=left_bnd_pt[1]
+            ray_points[jdx,2]=right_bnd_pt[0]
+            ray_points[jdx,3]=right_bnd_pt[1]
+
+        sample_points=np.vstack((sample_points,ray_points))
+
+    return sample_points
+            
+
+def compute_edge_stats(color_space):
+
     for key,value in edge_to_samples.items():
-          
-          first_pt=node_mapping[int(key[0])].pt[0]
+          start_idx=node_mapping[int(key[0])].id.index(int(value[0]))
+          stop_idx=node_mapping[int(key[1])].id.index(int(value[-1]))
+
+          first_pt=node_mapping[int(key[0])].pt[start_idx]
           shock_curve=[edge_samples.get(int(value[id])).pt for id in range(1,len(value)-1)]
-          last_pt=node_mapping[int(key[1])].pt[0]
+          last_pt=node_mapping[int(key[1])].pt[stop_idx]
           shock_curve.insert(0,first_pt)
           shock_curve.append(last_pt)
 
+          first_theta=node_mapping[int(key[0])].theta[start_idx]
+          theta_curve=[edge_samples.get(int(value[id])).theta for id in range(1,len(value)-1)]
+          last_theta=node_mapping[int(key[1])].theta[stop_idx]
+          theta_curve.insert(0,first_theta)
+          theta_curve.append(last_theta)
+
+          first_phi=node_mapping[int(key[0])].phi[start_idx]
+          phi_curve=[edge_samples.get(int(value[id])).phi for id in range(1,len(value)-1)]
+          last_phi=node_mapping[int(key[1])].phi[stop_idx]
+          phi_curve.insert(0,first_phi)
+          phi_curve.append(last_phi)
+
+          first_radius=node_mapping[int(key[0])].radius[start_idx]
+          radius_curve=[edge_samples.get(int(value[id])).radius for id in range(1,len(value)-1)]
+          last_radius=node_mapping[int(key[1])].radius[stop_idx]
+          radius_curve.insert(0,first_radius)
+          radius_curve.append(last_radius)
+
+          points=sample_fragment(shock_curve,theta_curve,phi_curve,radius_curve)
+
+          avg_color=get_frag_average_color(points,color_space)
+
+          # np.savetxt(str(key[0])+'_s_to_t_'+str(key[1])+'.txt',points,delimiter=' ')
+          # np.savetxt(str(key[0])+'_s_to_t_'+str(key[1])+'_avg.fmt',avg_color,delimiter=' ')
+          
           plus_curve=[edge_samples.get(int(value[id])).plus_pt for id in range(1,len(value)-1)]
           minus_curve=[edge_samples.get(int(value[id])).minus_pt for id in range(1,len(value)-1)]
 
@@ -813,7 +873,7 @@ def compute_edge_stats():
                totals=zip(*poly)
                area=polyArea(np.array(totals[0]),np.array(totals[1]))
 
-
+        
           # Not sure if this is good revisit
           # if len(plus_curve) and len(minus_curve):
           #     if plus_curve[0][0] > minus_curve[0][0]:
@@ -830,7 +890,8 @@ def compute_edge_stats():
                            MCurve=minus_totalCurvature,
                            MLength=minus_length,
                            MAngle=minus_angle,
-                           PolyArea=area)
+                           PolyArea=area,
+                           AvgColor=avg_color)
           
           curve_stats[key]=stats
 
@@ -1086,7 +1147,7 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
      feature_matrix=np.zeros((numb_nodes,edge_features))
 
      #create edge matrix
-     edge_matrices=np.zeros((numb_nodes,numb_nodes,10))
+     edge_matrices=defaultdict(list)
 
      #node locations
      locations =[]
@@ -1187,17 +1248,10 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
                source_idx=node_order[int(pair[0])]
                target_idx=node_order[int(pair[1])]
 
-               edge_matrices[source_idx,target_idx,0]=props.SCurve
-               edge_matrices[source_idx,target_idx,1]=props.SLength
-               edge_matrices[source_idx,target_idx,2]=props.SAngle
-               edge_matrices[source_idx,target_idx,3]=props.PCurve
-               edge_matrices[source_idx,target_idx,4]=props.PLength
-               edge_matrices[source_idx,target_idx,5]=props.PAngle
-               edge_matrices[source_idx,target_idx,6]=props.MCurve
-               edge_matrices[source_idx,target_idx,7]=props.MLength
-               edge_matrices[source_idx,target_idx,8]=props.MAngle
-               edge_matrices[source_idx,target_idx,9]=props.PolyArea
+               ef=[props.SCurve,props.SLength,props.SAngle,props.PCurve,props.PLength,props.PAngle,props.MCurve,props.MLength,props.MAngle,props.PolyArea,props.AvgColor]
 
+               edge_matrices[(source_idx,target_idx)]=ef
+               
                feature_matrix[row][0+start]=props.SCurve
                feature_matrix[row][1+start]=props.SLength
                feature_matrix[row][2+start]=props.SAngle
@@ -1208,7 +1262,11 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
                feature_matrix[row][7+start]=props.MLength
                feature_matrix[row][8+start]=props.MAngle
                feature_matrix[row][9+start]=props.PolyArea
-               start=start+10
+               feature_matrix[row][10+start]=props.AvgColor[0]
+               feature_matrix[row][11+start]=props.AvgColor[1]
+               feature_matrix[row][12+start]=props.AvgColor[2]
+
+               start=start+13
 
      return adj_matrix,feature_matrix,edge_matrices
     
@@ -1228,7 +1286,7 @@ def convertEsfFile(esf_file,image_file,con_file,coarse):
      sample_data=12
      node_info=9
      edge_offset=4
-     edge_features=58
+     edge_features=67
      
      _,numb_nodes=lines[7].split(':')
      _,numb_edges=lines[8].split(':')
@@ -1245,7 +1303,7 @@ def convertEsfFile(esf_file,image_file,con_file,coarse):
                                                          edge_offset,numb_edges)
      read_edge_samples(sample_line,lines,sample_data,edge_offset,numb_edges,
                        numb_edge_samples,numb_degen_edges,node_info)
-     compute_edge_stats()
+     compute_edge_stats(I)
      compute_sorted_order()
 
          
@@ -1286,9 +1344,28 @@ def convertEsfFile(esf_file,image_file,con_file,coarse):
      hf.create_dataset('adj_matrix',data=adj_matrix)
      hf.create_dataset('dims',data=dims)
 
-     # for plane in range(edge_matrices.shape[-1]):
-     #     var='edge_chan_'+str(plane)
-     #     hf.create_dataset(var,data=edge_matrices[:,:,plane])
+     output_edge=np.zeros((len(edge_matrices),15))
+
+     idx=0
+     for key,value in edge_matrices.items():
+         output_edge[idx,0]=key[0]
+         output_edge[idx,1]=key[1]
+         output_edge[idx,2]=value[0]
+         output_edge[idx,3]=value[1]
+         output_edge[idx,4]=value[2]
+         output_edge[idx,5]=value[3]
+         output_edge[idx,6]=value[4]
+         output_edge[idx,7]=value[5]
+         output_edge[idx,8]=value[6]
+         output_edge[idx,9]=value[7]
+         output_edge[idx,10]=value[8]
+         output_edge[idx,11]=value[9]
+         output_edge[idx,12]=value[10][0]
+         output_edge[idx,13]=value[10][1]
+         output_edge[idx,14]=value[10][2]
+         idx=idx+1
+         
+     hf.create_dataset('edge_features',data=output_edge)
          
      hf.close()
      
