@@ -59,24 +59,34 @@ def main(args):
     shuffle_io=config_file['shuffle_io']
     n_classes=config_file['num_classes']
     apply_da=config_file['data_augment']
-    num_feats = config_file['features_dim']
     add_self_loop = config_file['self_loop']
-    edge_dim = config_file['edge_dim']
+    edge_input_dim = config_file['edge_dim']
+    node_input_dim = config_file['node_dim']
+    rad_scale=config_file['rad_scale']
+    angle_scale=config_file['angle_scale']
+    length_scale=config_file['length_scale']
+    curve_scale=config_file['curve_scale']
+    poly_scale=config_file['poly_scale']
     batch_io=args.batch_size
     epochs=args.epochs
     bdir=os.path.basename(train_dir)
 
-    
-    prefix='nn_sg_model_'+dataset+'_'+bdir+'_'+str(args.n_layers)+'_'+str(args.n_hidden)+'_'+args.readout+'_'+str(app_io)+'_'+str(add_self_loop)
+    norm_factors={'rad_scale':rad_scale,'angle_scale':angle_scale,'length_scale':length_scale,'curve_scale':curve_scale,'poly_scale':poly_scale}
+        
+    prefix='m-mpnn_ni-'+str(node_input_dim)+'_nh-'+str(args.node_hidden_dim)+'_ei-'+str(edge_input_dim)+'_eh-'+str(args.edge_hidden_dim)+'_app-'+\
+        str(app_io)+'_lay-'+str(args.n_layers)+'_agg-'+args.aggregate+'_res-'+str(args.residual)+'_do-'+str(args.dropout)+'_ro-'+str(args.readout)
 
     if args.readout == 'spp':
-        extra='_'+str(args.n_grid)
+        extra='_ng-'+str(args.n_grid)
         prefix+=extra
 
+    extra='-b_'+str(batch_io)
+    prefix+=extra
+    
     print('saving to prefix: ', prefix)
     
     # create train dataset
-    testset=ShockGraphDataset(test_dir,dataset,app=app_io,cache=cache_io,symmetric=symm_io,data_augment=apply_da,grid=args.n_grid,self_loop=add_self_loop,dsm_norm=False)
+    testset=ShockGraphDataset(test_dir,dataset,norm_factors,app=app_io,cache=cache_io,symmetric=symm_io,data_augment=apply_da,grid=args.n_grid,self_loop=add_self_loop,dsm_norm=False)
 
     # Use PyTorch's DataLoader and the collate function
     # defined before.
@@ -89,11 +99,12 @@ def main(args):
     for state_path in model_files:
         print('Using weights: ',state_path)
 
-        model = Classifier(num_feats,
-                           args.n_hidden,
+        model = Classifier(node_input_dim,
+                           args.node_hidden_dim,
+                           edge_input_dim,
+                           args.edge_hidden_dim,
                            n_classes,
                            args.n_layers,
-                           edge_dim,
                            args.aggregate,
                            args.residual,
                            args.readout,
@@ -145,8 +156,10 @@ if __name__ == '__main__':
                         help="dropout probability")
     parser.add_argument("--lr", type=float, default=1e-2,
                         help="learning rate")
-    parser.add_argument("--n-hidden", type=int, default=512,
-                        help="number of hidden gsage units")
+    parser.add_argument("--node-hidden-dim", type=int, default=512,
+                        help="number of hidden node units")
+    parser.add_argument("--edge-hidden-dim", type=int, default=512,
+                        help="number of hidden node units")    
     parser.add_argument("--n-layers", type=int, default=2,
                         help="number of hidden gcn layers")
     parser.add_argument("--weight-decay", type=float, default=5e-4,

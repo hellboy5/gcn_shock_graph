@@ -12,7 +12,7 @@ import math
 
 from tqdm import tqdm
 from torch.utils.data.dataset import Dataset
-from scipy.misc import imread
+#from scipy.misc import imread
 from scipy import ndimage
 from operator import itemgetter
 from collections import defaultdict
@@ -338,7 +338,6 @@ class ShockGraphDataset(Dataset):
         self.__gen_file_list()
         self.__preprocess_graphs()
             
-        
     def __len__(self):
         'Denotes the number of batches per epoch'
         return len(self.files)
@@ -355,6 +354,7 @@ class ShockGraphDataset(Dataset):
             F_matrix=np.copy(features[0])
             #F_matrix=self.__recenter(F_matrix,absolute=True)
             graph.ndata['h']=torch.from_numpy(F_matrix)
+            
         else:        
             adj_matrix=self.adj_matrices[index]        
 
@@ -441,9 +441,8 @@ class ShockGraphDataset(Dataset):
     def __preprocess_graphs(self):
 
         for fid in tqdm(self.files):
+            print('Working on ',fid)
             adj_matrix,features,edge_features=self.__read_shock_graph(fid)
-
-
             
             obj=os.path.basename(fid)
             if self.dataset=='tign':
@@ -456,10 +455,15 @@ class ShockGraphDataset(Dataset):
             grid_cell=self.__compute_spp_map(features[0],self.grid)
 
             self.__recenter(features[0],absolute=True)
-            
-            F_pruned=np.delete(features[0],np.s_[28:features[0].shape[1]],1)
-            adj_pruned=np.delete(features[1],np.s_[28:features[1].shape[1]],1)
-            new_tuple=(F_pruned,adj_pruned)
+
+            if self.app == False:
+                F_pruned=np.delete(features[0],np.s_[28:features[0].shape[1]],1)
+                mask_pruned=np.delete(features[1],np.s_[28:features[1].shape[1]],1)
+            else:
+                F_pruned=np.delete(features[0],np.s_[28:58],1)
+                mask_pruned=np.delete(features[1],np.s_[28:58],1)
+                
+            new_tuple=(F_pruned,mask_pruned)
             
             self.adj_matrices.append(adj_matrix)
             self.sg_labels.append(label)
@@ -821,6 +825,7 @@ class ShockGraphDataset(Dataset):
         F_matrix[:,9:15] /= factor
         F_matrix[:,15:21] /= factor        
 
+        
     def __prune_ob(self,F_matrix,adj_matrix,mask,scale):
 
         # first round of delete
@@ -898,13 +903,19 @@ class ShockGraphDataset(Dataset):
 
         # read in features
         feature_data=fid.get('feature')
-        F_matrix=np.array(feature_data).astype(np.float32)
+        temp=np.array(feature_data).astype(np.float32)
+        sg_features=temp[:,:67]
+        sg_features=np.delete(sg_features,[38,39,40,51,52,53,64,65,66],axis=1)
+        color_features=temp[:,127:]
+        F_matrix=np.concatenate((sg_features,color_features),axis=1)
         
         # read in adj matrix
         adj_data=fid.get('adj_matrix')
         adj_matrix=np.array(adj_data)
 
-        edge_features=[]
+        # read in edge features
+        edge_data=fid.get('edge_features')
+        edge_matrix=np.array(edge_data).astype(np.float32)
 
         rad_scale=self.norm_factors['rad_scale']
         angle_scale=self.norm_factors['angle_scale']
@@ -912,68 +923,22 @@ class ShockGraphDataset(Dataset):
         curve_scale=self.norm_factors['curve_scale']
         poly_scale=self.norm_factors['poly_scale']
 
-        # read in edge channel data
-        ec0_data=fid.get('edge_chan_0')
-        ec0=np.array(ec0_data)
-        ec0=(ec0/curve_scale).astype(np.float32)
-        ec0=self.__dsm_normalize(ec0)
+        edge_matrix[:,[2,5,8]] /= curve_scale
+        edge_matrix[:,[3,6,9]] /= length_scale
+        edge_matrix[:,[4,7,10]] /= angle_scale
+        edge_matrix[:,11] /= poly_scale
+        edge_matrix[:,12:] /= 255.0
 
-        # read in edge channel data
-        ec1_data=fid.get('edge_chan_1')
-        ec1=np.array(ec1_data)
-        ec1=(ec1/length_scale).astype(np.float32)
-        ec1=self.__dsm_normalize(ec1)
+        if self.app==False:
+            edge_matrix=edge_matrix[:,:12]
+            
+        edge_features=np.zeros((adj_matrix.shape[0],adj_matrix.shape[1],edge_matrix.shape[1]-2),dtype=np.float32)
+        for rows in range(edge_matrix.shape[0]):
+            edge_features[np.int32(edge_matrix[rows,0]),np.int32(edge_matrix[rows,1]),:]=edge_matrix[rows,2:]
+            edge_features[np.int32(edge_matrix[rows,1]),np.int32(edge_matrix[rows,0]),:]=edge_matrix[rows,2:]
+
+        edge_features=torch.from_numpy(edge_features)
         
-        # read in edge channel data
-        ec2_data=fid.get('edge_chan_2')
-        ec2=np.array(ec2_data)
-        ec2=(ec2/angle_scale).astype(np.float32)
-        ec2=self.__dsm_normalize(ec2)
-
-        # read in edge channel data
-        ec3_data=fid.get('edge_chan_3')
-        ec3=np.array(ec3_data)
-        ec3=(ec3/curve_scale).astype(np.float32)
-        ec3=self.__dsm_normalize(ec3)
-        
-        # read in edge channel data
-        ec4_data=fid.get('edge_chan_4')
-        ec4=np.array(ec4_data)
-        ec4=(ec4/length_scale).astype(np.float32)
-        ec4=self.__dsm_normalize(ec4)
-
-        # read in edge channel data
-        ec5_data=fid.get('edge_chan_5')
-        ec5=np.array(ec5_data)
-        ec5=(ec5/angle_scale).astype(np.float32)
-        ec5=self.__dsm_normalize(ec5)
-
-        # read in edge channel data
-        ec6_data=fid.get('edge_chan_6')
-        ec6=np.array(ec6_data)
-        ec6=(ec6/curve_scale).astype(np.float32)
-        ec6=self.__dsm_normalize(ec6)
-        
-        # read in edge channel data
-        ec7_data=fid.get('edge_chan_7')
-        ec7=np.array(ec7_data)
-        ec7=(ec7/length_scale).astype(np.float32)
-        ec7=self.__dsm_normalize(ec7)
-
-        # read in edge channel data
-        ec8_data=fid.get('edge_chan_8')
-        ec8=np.array(ec8_data)
-        ec8=(ec8/angle_scale).astype(np.float32)
-        ec8=self.__dsm_normalize(ec8)
-        
-        # read in edge channel data
-        ec9_data=fid.get('edge_chan_9')
-        ec9=np.array(ec9_data)
-        ec9=(ec9/poly_scale).astype(np.float32)
-        ec9=self.__dsm_normalize(ec9)
-
-        edge_features=torch.from_numpy(np.dstack((ec0,ec1,ec2,ec3,ec4,ec5,ec6,ec7,ec8,ec9)))
-
         # read in image dims
         dims=fid.get('dims')
         dims=np.array(dims)
@@ -988,52 +953,7 @@ class ShockGraphDataset(Dataset):
         self.center=np.array([self.image_size/2.0,self.image_size/2.0])
         self.factor=(self.image_size/2.0)*1.2
 
-        # get image
-        if self.app:
-            image_name=sg_file.split('-')[0]+'.png'
-            img=imread(image_name)
-            F_color=self.__get_pixel_values(F_matrix_unwrapped,img)
-
-            # add color and shape features together
-            F_combined=np.concatenate((F_matrix_unwrapped,F_color),axis=1)
-        else:
-            F_combined=F_matrix_unwrapped
-
-        # F_combined_pruned,adj_matrix_pruned,mask_pruned=self.__prune_ob(F_combined,adj_matrix,mask,self.image_size)
-            
-        # if self.flip_pp:
-        #     F_combined_pruned[:,1]=((self.width-1)-F_combined_pruned[:,1])-self.width/2
-        #     F_combined_pruned[:,3:6]=math.pi-F_combined_pruned[:,3:6]
-
-        #     v_plus=F_combined_pruned[:,3:6]+F_combined_pruned[:,6:9]
-        #     new_plus=self.__translate_points(F_combined_pruned[:,:2],v_plus,F_combined_pruned[:,2])
-        #     v_minus=F_combined_pruned[:,3:6]-F_combined_pruned[:,6:9]
-        #     new_minus=self.__translate_points(F_combined_pruned[:,:2],v_minus,F_combined_pruned[:,2])
-
-        #     F_combined_pruned[:,9:15]=new_plus
-        #     F_combined_pruned[:,15:21]=new_minus
-
-        #     F_combined_pruned[:,3:6]+=2*math.pi
-        #     F_combined_pruned[:,3]=fixAngle2PiPi_new_vector(F_combined_pruned[:,3])
-        #     F_combined_pruned[:,4]=fixAngle2PiPi_new_vector(F_combined_pruned[:,4])
-        #     F_combined_pruned[:,5]=fixAngle2PiPi_new_vector(F_combined_pruned[:,5])
-
-        #     # plus theta
-        #     F_combined_pruned[:,21] = fixAngleMPiPi_new_vector(F_combined_pruned[:,3]+F_combined_pruned[:,6]-(math.pi/2.0));
-        #     F_combined_pruned[:,22] = fixAngleMPiPi_new_vector(F_combined_pruned[:,4]+F_combined_pruned[:,7]-(math.pi/2.0));
-        #     F_combined_pruned[:,23] = fixAngleMPiPi_new_vector(F_combined_pruned[:,5]+F_combined_pruned[:,8]-(math.pi/2.0));
-
-        #     # minus theta
-        #     F_combined_pruned[:,24] = fixAngleMPiPi_new_vector(F_combined_pruned[:,3]-F_combined_pruned[:,6]+math.pi/2.0);
-        #     F_combined_pruned[:,25] = fixAngleMPiPi_new_vector(F_combined_pruned[:,4]-F_combined_pruned[:,7]+math.pi/2.0);
-        #     F_combined_pruned[:,26] = fixAngleMPiPi_new_vector(F_combined_pruned[:,5]-F_combined_pruned[:,8]+math.pi/2.0);
-
-        #     F_combined_pruned=F_combined_pruned*mask_pruned
-
-        # # resort to be safe
-        # new_adj_matrix,new_F_matrix,new_mask=self.__compute_sorted_order(F_combined_pruned,adj_matrix_pruned,mask_pruned)
-
-        return adj_matrix,(F_combined,mask),edge_features
+        return adj_matrix,(F_matrix_unwrapped,mask),edge_features
 
 
     def __create_graph(self,adj_matrix,edge_features=[]):
