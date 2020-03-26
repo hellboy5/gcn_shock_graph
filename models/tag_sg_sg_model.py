@@ -4,16 +4,19 @@ import torch.nn as nn
 import dgl.nn.pytorch as conv
 import torch.nn.functional as F
 from .spp_pooling import SppPooling
+from .cov_pooling import CovPooling
 
 class Classifier(nn.Module):
     def __init__(self, in_dim, hidden_dim, n_classes,hidden_layers,ctype,hops,readout,
-                 activation_func,dropout,grid,device):
+                 activation_func,dropout,grid,K,device):
         super(Classifier, self).__init__()
         self.device      = device
         self.readout     = readout
         self.layers      = nn.ModuleList()
         self.batch_norms = nn.ModuleList() 
         self.grid        = grid
+        self.K           = K
+        self.hidden_dim  = hidden_dim
 
         # input layer
         if ctype == 'tagconv':
@@ -32,7 +35,7 @@ class Classifier(nn.Module):
             
         # dropout layer
         self.dropout=nn.Dropout(p=dropout)
-        
+                
         # last layer
         if self.readout == 'max':
             self.readout_fcn = conv.MaxPooling()
@@ -42,6 +45,12 @@ class Classifier(nn.Module):
             self.readout_fcn = conv.SumPooling()
         elif self.readout == 'gap':
             self.readout_fcn = conv.GlobalAttentionPooling(nn.Linear(hidden_dim,1),nn.Linear(hidden_dim,hidden_dim*2))
+        elif self.readout == 'sort':
+            self.readout_fcn = conv.SortPooling(self.K)
+        elif self.readout == 'set':
+            self.readout_fcn = conv.Set2Set(hidden_dim,2,1)
+        elif self.readout == 'cov':
+            self.readout_fcn = CovPooling(hidden_dim)
         else:
             self.readout_fcn = SppPooling(hidden_dim,self.grid)
         
@@ -53,11 +62,21 @@ class Classifier(nn.Module):
                 nn.Dropout(),
                 nn.Linear(2*hidden_dim, 2*hidden_dim),
                 nn.ReLU(inplace=True),
-                nn.Linear(2*hidden_dim, n_classes),
+                nn.Linear(2*hidden_dim, n_classes)
             )
+        elif self.readout == 'sort':
+            self.classify = nn.Sequential(
+                #nn.Dropout(),
+                nn.Linear(hidden_dim*self.K, n_classes)
+            )
+        elif self.readout == 'cov':
+            self.classify = nn.Sequential(
+                nn.Dropout(),
+                nn.Linear( int(((hidden_dim+1)*hidden_dim)/2), n_classes)
+            )            
         else:
             var=hidden_dim
-            if self.readout == 'gap':
+            if self.readout == 'gap' or self.readout == 'set':
                 var*=2
             self.classify = nn.Linear(var, n_classes)
         

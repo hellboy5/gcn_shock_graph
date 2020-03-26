@@ -53,16 +53,15 @@ def main(args):
 
     # create dataset
     config_file=json.load(open(args.cfg))
-    train_dir=config_file['train_dir']
     test_dir=config_file['test_dir']
     dataset=config_file['dataset']
     cache_io=config_file['cache_io']
-    app_io=config_file['app']
+    napp=config_file['node_app']
+    eapp=config_file['edge_app']
     symm_io=config_file['symm_io']
     shuffle_io=config_file['shuffle_io']
     n_classes=config_file['num_classes']
     apply_da=config_file['data_augment']
-    num_feats = config_file['features_dim']
     rad_scale=config_file['rad_scale']
     angle_scale=config_file['angle_scale']
     length_scale=config_file['length_scale']
@@ -70,18 +69,29 @@ def main(args):
     poly_scale=config_file['poly_scale']
     batch_io=args.batch_size
     epochs=args.epochs
-    bdir=os.path.basename(train_dir)
 
+    input_dim=58
+    if napp:
+        input_dim=input_dim+21
+
+    if eapp:
+        input_dim=input_dim+9
+        
     norm_factors={'rad_scale':rad_scale,'angle_scale':angle_scale,'length_scale':length_scale,'curve_scale':curve_scale,'poly_scale':poly_scale}
 
-    prefix=args.ctype+'_sg_model_'+dataset+'_'+bdir+'_'+str(args.n_layers)+'_'+str(args.n_hidden)+'_'+str(args.hops)+'_'+args.readout+'_'+str(args.dropout)+'_'+str(app_io)
-    
+    prefix='data-'+str(dataset)+'_m-tag_ni-'+str(input_dim)+'_nh-'+str(args.n_hidden)+'_lay-'+str(args.n_layers)+'_hops-'+str(args.hops)+'_napp-'+str(napp)+'_eapp-'+str(eapp)+'_do-'+str(args.dropout)+'_ro-'+str(args.readout)
+
     if args.readout == 'spp':
-        extra='_'+str(args.n_grid)
+        extra='_ng-'+str(args.n_grid)
         prefix+=extra
 
+    extra='_b-'+str(batch_io)
+    prefix+=extra
+
+    print('saving to prefix: ', prefix)
+
     # create train dataset
-    testset=ShockGraphDataset(test_dir,dataset,norm_factors,app=app_io,cache=True,symmetric=symm_io,
+    testset=ShockGraphDataset(test_dir,dataset,norm_factors,node_app=napp,edge_app=eapp,cache=True,symmetric=symm_io,
                               data_augment=False,grid=args.n_grid)
 
     # Use PyTorch's DataLoader and the collate function
@@ -90,7 +100,7 @@ def main(args):
                              collate_fn=partial(collate,device_name=device))
 
     if args.flip:
-        testset_flip=ShockGraphDataset(test_dir,dataset,app=app_io,cache=True,
+        testset_flip=ShockGraphDataset(test_dir,dataset,node_app=napp,edge_app=eapp,cache=True,
                                        symmetric=symm_io,data_augment=False,grid=args.n_grid,flip_pp=True)
         
         # Use PyTorch's DataLoader and the collate function
@@ -112,7 +122,7 @@ def main(args):
     for state_path in model_files:
         print('Using weights: ',state_path)
 
-        model = Classifier(num_feats,
+        model = Classifier(input_dim,
                            args.n_hidden,
                            n_classes,
                            args.n_layers,
@@ -122,6 +132,7 @@ def main(args):
                            F.relu,
                            args.dropout,
                            args.n_grid,
+                           args.K,
                            device)
     
 
@@ -208,8 +219,10 @@ if __name__ == '__main__':
     parser.add_argument("--n-grid", type=int, default=8,
                         help="number of grid cells")                                    
     parser.add_argument("--flip", type=bool, default=False,
-                        help="flip data")                                    
-
+                        help="flip data")
+    parser.add_argument("--K", type=float, default=100,
+                        help="sort pooling keep K nodes")
+ 
     args = parser.parse_args()
     print(args)
 

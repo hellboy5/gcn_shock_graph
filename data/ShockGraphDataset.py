@@ -12,7 +12,7 @@ import math
 
 from tqdm import tqdm
 from torch.utils.data.dataset import Dataset
-from scipy.misc import imread
+#from scipy.misc import imread
 from scipy import ndimage
 from operator import itemgetter
 from collections import defaultdict
@@ -295,11 +295,12 @@ def fixAngle2PiPi_new_vector(vec):
 
 class ShockGraphDataset(Dataset):
     'Generates data for Keras'
-    def __init__(self,directory,dataset,norm_factors,app=False,cache=True,symmetric=False,data_augment=False,flip_pp=False,grid=8):
+    def __init__(self,directory,dataset,norm_factors,node_app=False,edge_app=False,cache=True,symmetric=False,data_augment=False,flip_pp=False,grid=8):
         'Initialization'
         
         self.directory = directory
-        self.app=app
+        self.node_app=node_app
+        self.edge_app=edge_app
         self.cache=cache
         self.symmetric = symmetric
         self.files=[]
@@ -685,58 +686,63 @@ class ShockGraphDataset(Dataset):
             curve_scale=self.norm_factors['curve_scale']
             poly_scale=self.norm_factors['poly_scale']
 
+            if self.edge_app:
+                offset=13
+            else:
+                offset=10
+
             # scale shock radius
             F_matrix[:,2] /= rad_scale
 
             # scale shock curvature
             F_matrix[:,28] /= curve_scale
-            F_matrix[:,38] /= curve_scale
-            F_matrix[:,48] /= curve_scale
+            F_matrix[:,28+offset] /= curve_scale
+            F_matrix[:,28+2*offset] /= curve_scale
 
             # scale plus curvature
             F_matrix[:,31] /= curve_scale
-            F_matrix[:,41] /= curve_scale
-            F_matrix[:,51] /= curve_scale
+            F_matrix[:,31+offset] /= curve_scale
+            F_matrix[:,31+2*offset] /= curve_scale
 
             # scale minus curvature
             F_matrix[:,34] /= curve_scale
-            F_matrix[:,44] /= curve_scale
-            F_matrix[:,54] /= curve_scale
+            F_matrix[:,34+offset] /= curve_scale
+            F_matrix[:,34+2*offset] /= curve_scale
 
             # scale shock length
             F_matrix[:,29] /= length_scale
-            F_matrix[:,39] /= length_scale
-            F_matrix[:,49] /= length_scale
+            F_matrix[:,29+offset] /= length_scale
+            F_matrix[:,29+2*offset] /= length_scale
 
             # scale plus length
             F_matrix[:,32] /= length_scale
-            F_matrix[:,42] /= length_scale
-            F_matrix[:,52] /= length_scale
+            F_matrix[:,32+offset] /= length_scale
+            F_matrix[:,32+2*offset] /= length_scale
 
             # scale minus length
             F_matrix[:,35] /= length_scale
-            F_matrix[:,45] /= length_scale
-            F_matrix[:,55] /= length_scale
+            F_matrix[:,35+offset] /= length_scale
+            F_matrix[:,35+2*offset] /= length_scale
 
             # scale shock angle
             F_matrix[:,30] /= angle_scale
-            F_matrix[:,40] /= angle_scale
-            F_matrix[:,50] /= angle_scale
+            F_matrix[:,30+offset] /= angle_scale
+            F_matrix[:,30+2*offset] /= angle_scale
 
             # scale plus angle
             F_matrix[:,33] /= angle_scale
-            F_matrix[:,43] /= angle_scale
-            F_matrix[:,53] /= angle_scale
+            F_matrix[:,33+offset] /= angle_scale
+            F_matrix[:,33+2*offset] /= angle_scale
 
             # scale minus angle
             F_matrix[:,36] /= angle_scale
-            F_matrix[:,46] /= angle_scale
-            F_matrix[:,56] /= angle_scale
+            F_matrix[:,36+offset] /= angle_scale
+            F_matrix[:,36+2*offset] /= angle_scale
 
             # scale poly scale
             F_matrix[:,37] /= poly_scale
-            F_matrix[:,47] /= poly_scale
-            F_matrix[:,57] /= poly_scale
+            F_matrix[:,37+offset] /= poly_scale
+            F_matrix[:,37+2*offset] /= poly_scale
 
         else:
 
@@ -932,11 +938,28 @@ class ShockGraphDataset(Dataset):
         # cemv_file=sdir+'/'+prefix+'.cemv'
         # con_points=self.__read_cemv_file(cemv_file)
 
-        
+        # feature_data=fid.get('feature')
+        # F_matrix=np.array(feature_data).astype(np.float32)
+        # F_matrix=F_matrix[:,:58]
+         
         # read in features
         feature_data=fid.get('feature')
-        F_matrix=np.array(feature_data).astype(np.float32)
-        F_matrix=F_matrix[:,:58]
+        temp=np.array(feature_data).astype(np.float32)
+        sg_features=temp[:,:67]
+
+        if self.edge_app==False:
+            sg_features=np.delete(sg_features,[38,39,40,51,52,53,64,65,66],axis=1)
+        else:
+            sg_features[:,38:41] /= 255.0
+            sg_features[:,51:54] /= 255.0
+            sg_features[:,64:67] /= 255.0
+            
+        if self.node_app:
+            color_features=temp[:,127:]/255.0
+            F_matrix=np.concatenate((sg_features,color_features),axis=1)
+        else:
+            F_matrix=sg_features
+        
 
         # get shape context
         # a = SC()
@@ -969,6 +992,8 @@ class ShockGraphDataset(Dataset):
         # read in image dims
         dims=fid.get('dims')
         dims=np.array(dims)
+
+        fid.close()
         
         # remove normalization put in
         F_matrix_unwrapped,mask=self.__unwrap_data(F_matrix)
@@ -980,18 +1005,7 @@ class ShockGraphDataset(Dataset):
         self.center=np.array([self.image_size/2.0,self.image_size/2.0])
         self.factor=(self.image_size/2.0)*1.2
 
-        # get image
-        if self.app:
-            image_name=sg_file.split('-')[0]+'.png'
-            img=imread(image_name)
-            F_color=self.__get_pixel_values(F_matrix_unwrapped,img)
-
-            # add color and shape features together
-            F_combined=np.concatenate((F_matrix_unwrapped,F_color),axis=1)
-        else:
-            F_combined=F_matrix_unwrapped
-
-        F_combined_pruned,adj_matrix_pruned,mask_pruned=self.__prune_ob(F_combined,adj_matrix,mask,self.image_size)
+        F_combined_pruned,adj_matrix_pruned,mask_pruned=self.__prune_ob(F_matrix_unwrapped,adj_matrix,mask,self.image_size)
             
         if self.flip_pp:
             F_combined_pruned[:,1]=((self.width-1)-F_combined_pruned[:,1])-self.width/2
