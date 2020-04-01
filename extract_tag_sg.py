@@ -33,7 +33,8 @@ def im2vec(inp,layer,model,hidden_dim):
 
     h=layer.register_forward_hook(copy_data)
 
-    h_x=model(inp)
+    with torch.no_grad():
+        h_x=model(inp)
 
     h.remove()
 
@@ -58,14 +59,25 @@ def main(args):
     n_classes=config_file['num_classes']
     apply_da=config_file['data_augment']
     num_feats = config_file['features_dim']
+    rad_scale=config_file['rad_scale']
+    angle_scale=config_file['angle_scale']
+    length_scale=config_file['length_scale']
+    curve_scale=config_file['curve_scale']
+    poly_scale=config_file['poly_scale']
     batch_io=1
     epochs=args.epochs
     bdir=os.path.basename(train_dir)
- 
-    prefix=args.ctype+'_sg_model_'+dataset+'_'+bdir+'_'+str(args.n_layers)+'_'+str(args.n_hidden)+'_'+str(args.hops)+'_'+args.readout
+
+    norm_factors={'rad_scale':rad_scale,'angle_scale':angle_scale,'length_scale':length_scale,'curve_scale':curve_scale,'poly_scale':poly_scale}
+
+    prefix=args.ctype+'_sg_model_'+dataset+'_'+bdir+'_'+str(args.n_layers)+'_'+str(args.n_hidden)+'_'+str(args.hops)+'_'+args.readout+'_'+str(args.dropout)+'_'+str(app_io)
+
+    if args.readout == 'spp':
+        extra='_'+str(args.n_grid)
+        prefix+=extra
 
     # create train dataset
-    testset=ShockGraphDataset(test_dir,dataset,app=app_io,cache=True,symmetric=symm_io,data_augment=False)
+    testset=ShockGraphDataset(train_dir,dataset,norm_factors,app=app_io,cache=True,symmetric=symm_io,data_augment=False,grid=args.n_grid)
 
     # Use PyTorch's DataLoader and the collate function
     # defined before.
@@ -87,6 +99,7 @@ def main(args):
                        args.readout,
                        F.relu,
                        args.dropout,
+                       args.n_grid,
                        device)
     
 
@@ -141,8 +154,10 @@ if __name__ == '__main__':
                         help="Convolution type: tagconv/sgconv")                                    
     parser.add_argument("--hops", type=int, default=2,
                         help="number of hops")
+    parser.add_argument("--n-grid", type=int, default=8,
+                        help="number of grid cells"),
     parser.add_argument("--model", type=str,
-                        help="load pretrained model/weights"),
+                        help="load pretrained model/weights")
 
     args = parser.parse_args()
     print(args)
