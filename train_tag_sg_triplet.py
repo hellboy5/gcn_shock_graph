@@ -90,7 +90,8 @@ def main(args):
                        args.K,
                        device)
 
-    loss_func = nn.TripletMarginLoss(margin=args.margin)
+    
+    loss_func = nn.TripletMarginLoss(margin=args.margin,reduction='none')
      
     # define the optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -104,13 +105,14 @@ def main(args):
         epoch_loss = 0
         for iter, bg in enumerate(data_loader):            
             prediction = model(bg)
-            data=torch.split(prediction,batch_io,dim=0)
+            data=torch.split(prediction,int(prediction.shape[0]/3),dim=0)
             anchors=data[0]
             positives=data[1]
             negatives=data[2]
 
+            all_loss = loss_func(anchors,positives,negatives)
+            loss=torch.mean(all_loss[all_loss.nonzero()])
             
-            loss = loss_func(anchors,positives,negatives)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
