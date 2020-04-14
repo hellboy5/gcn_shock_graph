@@ -22,6 +22,24 @@ from models.embedding_network import Classifier
 from torch.utils.data import DataLoader
 from functools import partial
 
+def triplet_loss_ba(anchors,positives,negatives,margin=0.1,reduce='mean'):
+    dAP=1.0-torch.sum(torch.mul(anchors,positives),1)
+    dAN=1.0-torch.sum(torch.mul(anchors,negatives),1)
+    triplet_loss=torch.clamp(dAP-dAN+margin,min=0.0)
+    positive_trips=triplet_loss.nonzero()
+    positive_fraction=len(positive_trips)/anchors.shape[0]
+    triplet_loss=triplet_loss[positive_trips]
+       
+    if reduce=='mean':
+        loss=torch.mean(triplet_loss)
+    else:
+        loss=torch.sum(triplet_loss)
+
+    return loss,positive_fraction,triplet_loss
+
+    
+    
+
 def main(args):
 
     if args.gpu<0:
