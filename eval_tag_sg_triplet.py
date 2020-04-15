@@ -22,23 +22,22 @@ from data.ShockGraphDataset import *
 from models.embedding_network import Classifier
 from torch.utils.data import DataLoader
 from functools import partial
-from sklearn.neighbors import KNeighborsClassifier
 
-def im2vec(inp,layer,model,hidden_dim):
-
-    embedding=torch.zeros(hidden_dim)
-
-    def copy_data(m,i,o):
-        embedding.copy_(o.data[0,:])
-
-    h=layer.register_forward_hook(copy_data)
+def im2vec(inp,model):
 
     with torch.no_grad():
-        h_x=model(inp)
-
-    h.remove()
+        embedding=model(inp)
 
     return embedding
+
+def cosine_distance(X1,X2):
+    return 1.0-torch.matmul(X1,torch.t(X2))
+
+def predict(D,labels):
+    
+    indices=torch.argmin(D,dim=1)
+    predicted_labels=labels[indices]
+    return predicted_labels
 
 def main(args):
 
@@ -76,7 +75,7 @@ def main(args):
         
     norm_factors={'rad_scale':rad_scale,'angle_scale':angle_scale,'length_scale':length_scale,'curve_scale':curve_scale,'poly_scale':poly_scale}
 
-    prefix='data-'+str(dataset)+'_m-triplet_ni-'+str(input_dim)+'_nh-'+str(args.n_hidden)+'_lay-'+str(args.n_layers)+'_hops-'+str(args.hops)+'_napp-'+str(napp)+'_eapp-'+str(eapp)+'_do-'+str(args.dropout)+'_ro-'+str(args.readout)+'_m-'+str(args.margin)
+    prefix='data-'+str(dataset)+'_m-triplet_ni-'+str(input_dim)+'_nh-'+str(args.n_hidden)+'_lay-'+str(args.n_layers)+'_hops-'+str(args.hops)+'_napp-'+str(napp)+'_eapp-'+str(eapp)+'_do-'+str(args.dropout)+'_ro-'+str(args.readout)+'_m-'+str(args.margin)+'_red-'+str(args.reduction)
 
     if args.readout == 'spp':
         extra='_ng-'+str(args.n_grid)
@@ -128,26 +127,24 @@ def main(args):
         model.eval()
 
         # get train embeddings and labels
-        train_embeddings=np.zeros((len(data_loader_train),args.n_hidden))
-        train_labels=np.zeros(len(data_loader_train))
+        train_embeddings=torch.zeros((len(data_loader_train),args.n_hidden))
+        train_labels=np.zeros(len(data_loader_train),dtype=np.int32)
         for iter, (bg, label) in enumerate(data_loader_train):
-            train_embeddings[iter,:] = im2vec(bg,layer,model,args.n_hidden)
+            train_embeddings[iter,:] = im2vec(bg,model)
             train_labels[iter]       = label
 
         # get test embeddings and labels
-        test_embeddings=np.zeros((len(data_loader_test),args.n_hidden))
+        test_embeddings=torch.zeros((len(data_loader_test),args.n_hidden))
         test_labels=np.zeros(len(data_loader_test),dtype=np.int32)
         for iter, (bg, label) in enumerate(data_loader_test):
-            test_embeddings[iter,:] = im2vec(bg,layer,model,args.n_hidden)
+            test_embeddings[iter,:] = im2vec(bg,model)
             test_labels[iter]       = label
 
+        D=cosine_distance(test_embeddings,train_embeddings)
 
-        knn = KNeighborsClassifier(n_neighbors=args.neighbors,algorithm='brute')
-        knn.fit(train_embeddings,train_labels)
-        
-        predicted=knn.predict(test_embeddings).astype(np.int32) 
+        predicted=predict(D,train_labels)
         groundtruth=test_labels
-        
+
         confusion_matrix=np.zeros((n_classes,n_classes))
         for ind in range(groundtruth.shape[0]):
             if groundtruth[ind]==predicted[ind]:
@@ -206,6 +203,8 @@ if __name__ == '__main__':
                         help="margin for triplet loss")
     parser.add_argument("--neighbors", type=int, default=1,
                         help="the k in kNN")
+    parser.add_argument("--reduction", type=str, default="mean",
+                        help="the reduction in triplet loss")
     
     args = parser.parse_args()
     print(args)
