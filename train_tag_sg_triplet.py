@@ -22,16 +22,16 @@ from models.embedding_network import Classifier
 from torch.utils.data import DataLoader
 from functools import partial
 
-def triplet_loss_ba(anchors,positives,negatives,margin=0.1,reduce='mean'):
+def triplet_loss_ba(anchors,positives,negatives,margin=0.1,reduction='mean'):
     dAP=1.0-torch.sum(torch.mul(anchors,positives),1)
     dAN=1.0-torch.sum(torch.mul(anchors,negatives),1)
     triplet_loss=torch.clamp(dAP-dAN+margin,min=0.0)
     positive_trips=triplet_loss.nonzero()
     positive_fraction=len(positive_trips)/anchors.shape[0]
     triplet_loss=triplet_loss[positive_trips]
-       
-    if reduce=='mean':
-        loss=torch.mean(triplet_loss)
+
+    if reduction=='mean':
+        loss=torch.sum(triplet_loss)/(triplet_loss.shape[0]+1e-08)
     else:
         loss=torch.sum(triplet_loss)
 
@@ -75,7 +75,7 @@ def main(args):
         
     norm_factors={'rad_scale':rad_scale,'angle_scale':angle_scale,'length_scale':length_scale,'curve_scale':curve_scale,'poly_scale':poly_scale}
 
-    prefix='data-'+str(dataset)+'_m-triplet_ni-'+str(input_dim)+'_nh-'+str(args.n_hidden)+'_lay-'+str(args.n_layers)+'_hops-'+str(args.hops)+'_napp-'+str(napp)+'_eapp-'+str(eapp)+'_do-'+str(args.dropout)+'_ro-'+str(args.readout)+'_m-'+str(args.margin)
+    prefix='data-'+str(dataset)+'_m-triplet_ni-'+str(input_dim)+'_nh-'+str(args.n_hidden)+'_lay-'+str(args.n_layers)+'_hops-'+str(args.hops)+'_napp-'+str(napp)+'_eapp-'+str(eapp)+'_do-'+str(args.dropout)+'_ro-'+str(args.readout)+'_m-'+str(args.margin)+'_red-'+str(args.reduction)
 
     if args.readout == 'spp':
         extra='_ng-'+str(args.n_grid)
@@ -95,7 +95,7 @@ def main(args):
                              collate_fn=partial(collate,device_name=device))
 
 
-    print('A TAGConv Triplet Graph Classifier is being trained')
+    print('A TAGConv Triplet Graph Classifier is being trained with Triplet Loss')
 
     model = Classifier(input_dim,
                        args.n_hidden,
@@ -108,8 +108,6 @@ def main(args):
                        args.K,
                        device)
 
-    
-    loss_func = nn.TripletMarginLoss(margin=args.margin,reduction='none')
      
     # define the optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -128,8 +126,7 @@ def main(args):
             positives=data[1]
             negatives=data[2]
 
-            all_loss = loss_func(anchors,positives,negatives)
-            loss=torch.mean(all_loss[all_loss.nonzero()])
+            loss,positive_fraction,triplets = triplet_loss_ba(anchors,positives,negatives,margin=args.margin,reduction=args.reduction)
             
             optimizer.zero_grad()
             loss.backward()
@@ -137,7 +134,7 @@ def main(args):
             epoch_loss += loss.detach().item()
         epoch_loss /= (iter + 1)
         epoch_losses.append(epoch_loss)
-        print('Epoch {}, loss {:.6f}'.format(epoch, epoch_loss))
+        print('Epoch {}, loss {:.6f}, Positive {:.2f}%'.format(epoch, epoch_loss,positive_fraction*100))
 
         if (epoch+1) % 25 == 0:
             path=prefix+'_epoch_'+str(epoch+1).zfill(3)+'.pth'
@@ -183,6 +180,8 @@ if __name__ == '__main__':
                         help="sort pooling keep K nodes")                                    
     parser.add_argument("--margin", type=float, default=1.0,
                         help="margin for triplet loss")                                    
+    parser.add_argument("--reduction", type=str, default="mean",
+                        help="how to reduce triplet losses")                                    
 
     args = parser.parse_args()
     print(args)
