@@ -616,7 +616,7 @@ class ShockGraphDataset(Dataset):
             adj_matrix,features=self.__read_shock_graph(fid)
 
             obj=os.path.basename(fid)
-            if self.dataset=='tign':
+            if self.dataset=='tign' or self.dataset=='mign':
                 class_name=obj[:obj.find('_')]
             else:
                 obj=re.split(r'[0-9].*',obj)[0]
