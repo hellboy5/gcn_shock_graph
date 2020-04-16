@@ -10,6 +10,7 @@ Author's code: https://github.com/PetarV-/GAT
 Pytorch implementation: https://github.com/Diego999/pyGAT
 """
 
+import os
 import numpy as np
 import torch
 import dgl
@@ -47,7 +48,8 @@ def main(args):
     poly_scale=config_file['poly_scale']
     batch_io=args.batch_size
     epochs=args.epochs
-
+    bdir=os.path.basename(train_dir)
+    
     input_dim=58
     if napp:
         input_dim=input_dim+21
@@ -57,7 +59,7 @@ def main(args):
         
     norm_factors={'rad_scale':rad_scale,'angle_scale':angle_scale,'length_scale':length_scale,'curve_scale':curve_scale,'poly_scale':poly_scale}
 
-    prefix='data-'+str(dataset)+'_m-tag_ni-'+str(input_dim)+'_nh-'+str(args.n_hidden)+'_lay-'+str(args.n_layers)+'_hops-'+str(args.hops)+'_napp-'+str(napp)+'_eapp-'+str(eapp)+'_do-'+str(args.dropout)+'_ro-'+str(args.readout)
+    prefix='data-'+str(bdir)+':'+str(dataset)+'_m-tag_ni-'+str(input_dim)+'_nh-'+str(args.n_hidden)+'_lay-'+str(args.n_layers)+'_hops-'+str(args.hops)+'_napp-'+str(napp)+'_eapp-'+str(eapp)+'_do-'+str(args.dropout)+'_ro-'+str(args.readout)
 
     if args.readout == 'spp':
         extra='_ng-'+str(args.n_grid)

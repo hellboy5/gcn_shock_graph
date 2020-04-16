@@ -22,7 +22,40 @@ from models.embedding_network import Classifier
 from torch.utils.data import DataLoader
 from functools import partial
 
-def triplet_loss_ba(anchors,positives,negatives,margin=0.1,reduction='mean'):
+def triplet_loss_hn(anchors,positives,negatives,margin=0.1,reduction='sum'):
+    dAP=1.0-torch.sum(torch.mul(anchors,positives),1)
+    aAN=1.0-torch.matmul(anchors,torch.t(negatives))
+    dAN,_=torch.min(aAN,dim=1)
+    triplet_loss=torch.clamp(dAP-dAN+margin,min=0.0)
+    positive_trips=triplet_loss.nonzero()
+    positive_fraction=len(positive_trips)/anchors.shape[0]
+    triplet_loss=triplet_loss[positive_trips]
+
+    if reduction=='mean':
+        loss=torch.sum(triplet_loss)/(triplet_loss.shape[0]+1e-08)
+    else:
+        loss=torch.sum(triplet_loss)
+
+    return loss,positive_fraction,triplet_loss
+
+def triplet_loss_bh(anchors,positives,negatives,margin=0.1,reduction='sum'):
+    aAP=1.0-torch.matmul(anchors,torch.t(positives))
+    aAN=1.0-torch.matmul(anchors,torch.t(negatives))
+    dAP,_=torch.max(aAP,dim=1)
+    dAN,_=torch.min(aAN,dim=1)
+    triplet_loss=torch.clamp(dAP-dAN+margin,min=0.0)
+    positive_trips=triplet_loss.nonzero()
+    positive_fraction=len(positive_trips)/anchors.shape[0]
+    triplet_loss=triplet_loss[positive_trips]
+
+    if reduction=='mean':
+        loss=torch.sum(triplet_loss)/(triplet_loss.shape[0]+1e-08)
+    else:
+        loss=torch.sum(triplet_loss)
+
+    return loss,positive_fraction,triplet_loss
+
+def triplet_loss_ba(anchors,positives,negatives,margin=0.1,reduction='sum'):
     dAP=1.0-torch.sum(torch.mul(anchors,positives),1)
     dAN=1.0-torch.sum(torch.mul(anchors,negatives),1)
     triplet_loss=torch.clamp(dAP-dAN+margin,min=0.0)
@@ -75,7 +108,7 @@ def main(args):
         
     norm_factors={'rad_scale':rad_scale,'angle_scale':angle_scale,'length_scale':length_scale,'curve_scale':curve_scale,'poly_scale':poly_scale}
 
-    prefix='data-'+str(dataset)+'_m-triplet_ni-'+str(input_dim)+'_nh-'+str(args.n_hidden)+'_lay-'+str(args.n_layers)+'_hops-'+str(args.hops)+'_napp-'+str(napp)+'_eapp-'+str(eapp)+'_do-'+str(args.dropout)+'_ro-'+str(args.readout)+'_m-'+str(args.margin)+'_red-'+str(args.reduction)
+    prefix='data-'+str(dataset)+'_m-triplet_ni-'+str(input_dim)+'_nh-'+str(args.n_hidden)+'_lay-'+str(args.n_layers)+'_hops-'+str(args.hops)+'_napp-'+str(napp)+'_eapp-'+str(eapp)+'_do-'+str(args.dropout)+'_ro-'+str(args.readout)+'_emb-'+str(args.embed_dim)+'_m-'+str(args.margin)+'_red-'+str(args.reduction)+'_mine-'+str(args.strategy)
 
     if args.readout == 'spp':
         extra='_ng-'+str(args.n_grid)
@@ -99,6 +132,7 @@ def main(args):
 
     model = Classifier(input_dim,
                        args.n_hidden,
+                       args.embed_dim,
                        args.n_layers,
                        args.hops,
                        args.readout,
@@ -126,8 +160,13 @@ def main(args):
             positives=data[1]
             negatives=data[2]
 
-            loss,positive_fraction,triplets = triplet_loss_ba(anchors,positives,negatives,margin=args.margin,reduction=args.reduction)
-            
+            if args.strategy=='ba':
+                loss,positive_fraction,triplets = triplet_loss_ba(anchors,positives,negatives,margin=args.margin,reduction=args.reduction)
+            elif args.strategy=='bh':
+                loss,positive_fraction,triplets = triplet_loss_bh(anchors,positives,negatives,margin=args.margin,reduction=args.reduction)
+            else:
+                loss,positive_fraction,triplets = triplet_loss_hn(anchors,positives,negatives,margin=args.margin,reduction=args.reduction)
+                    
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -182,6 +221,10 @@ if __name__ == '__main__':
                         help="margin for triplet loss")                                    
     parser.add_argument("--reduction", type=str, default="mean",
                         help="how to reduce triplet losses")                                    
+    parser.add_argument("--strategy", type=str, default="ba",
+                        help="strategy for anchors, bh, ba")                                    
+    parser.add_argument("--embed_dim", type=int, default="192",
+                        help="dim to embed")
 
     args = parser.parse_args()
     print(args)

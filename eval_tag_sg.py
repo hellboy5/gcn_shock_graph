@@ -10,7 +10,7 @@ Author's code: https://github.com/PetarV-/GAT
 Pytorch implementation: https://github.com/Diego999/pyGAT
 """
 
-
+import os
 import numpy as np
 import torch
 import dgl
@@ -22,7 +22,7 @@ from data.ShockGraphDataset import *
 from models.tag_sg_sg_model import Classifier
 from torch.utils.data import DataLoader
 from functools import partial
-
+    
 def classify_data(model,data_loader,n_classes):
 
 
@@ -54,6 +54,7 @@ def main(args):
     # create dataset
     config_file=json.load(open(args.cfg))
     test_dir=config_file['test_dir']
+    train_dir=config_file['train_dir']
     dataset=config_file['dataset']
     cache_io=config_file['cache_io']
     napp=config_file['node_app']
@@ -69,7 +70,8 @@ def main(args):
     poly_scale=config_file['poly_scale']
     batch_io=args.batch_size
     epochs=args.epochs
-
+    bdir=os.path.basename(train_dir)
+    
     input_dim=58
     if napp:
         input_dim=input_dim+21
@@ -78,8 +80,7 @@ def main(args):
         input_dim=input_dim+9
         
     norm_factors={'rad_scale':rad_scale,'angle_scale':angle_scale,'length_scale':length_scale,'curve_scale':curve_scale,'poly_scale':poly_scale}
-
-    prefix='data-'+str(dataset)+'_m-tag_ni-'+str(input_dim)+'_nh-'+str(args.n_hidden)+'_lay-'+str(args.n_layers)+'_hops-'+str(args.hops)+'_napp-'+str(napp)+'_eapp-'+str(eapp)+'_do-'+str(args.dropout)+'_ro-'+str(args.readout)
+    prefix='data-'+str(bdir)+':'+str(dataset)+'_m-tag_ni-'+str(input_dim)+'_nh-'+str(args.n_hidden)+'_lay-'+str(args.n_layers)+'_hops-'+str(args.hops)+'_napp-'+str(napp)+'_eapp-'+str(eapp)+'_do-'+str(args.dropout)+'_ro-'+str(args.readout)
 
     if args.readout == 'spp':
         extra='_ng-'+str(args.n_grid)
@@ -89,7 +90,8 @@ def main(args):
     prefix+=extra
 
     print('saving to prefix: ', prefix)
-
+    print('Testing on ',test_dir)
+    
     # create train dataset
     testset=ShockGraphDataset(test_dir,dataset,norm_factors,node_app=napp,edge_app=eapp,cache=True,symmetric=symm_io,
                               data_augment=False,grid=args.n_grid)
