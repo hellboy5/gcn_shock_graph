@@ -9,7 +9,7 @@ class SppPooling(nn.Module):
     .. math::
         r^{(i)} = \sum_{k=1}^{N_i} x^{(i)}_k
     """
-    def __init__(self,input_dim,grid,readout='max'):
+    def __init__(self,input_dim,grid,readout='mean'):
         super(SppPooling, self).__init__()
         self.input_dim=input_dim
         self.grid=grid
@@ -59,6 +59,6 @@ class SppPooling(nn.Module):
                     start=start+nodes_per_graph[xx]
                     stop=start+nodes_per_graph[xx+1]
 
-
+            output=output.permute(0,3,1,2)
             return output
 
