@@ -30,8 +30,21 @@ def im2vec(inp,model):
 
     return embedding
 
-def cosine_distance(X1,X2):
-    return 1.0-torch.matmul(X1,torch.t(X2))
+def all_pairwise_distance(X1,X2,distance='l2'):
+
+    dot_product=torch.matmul(X1,torch.t(X2))
+    if distance == 'l2':
+        a=torch.sum(torch.mul(X1,X1),1)
+        b=torch.sum(torch.mul(X2,X2),1)
+        ab=dot_product
+        D=torch.sqrt(a.unsqueeze_(1)-2*ab+b.unsqueeze_(0))
+        return D
+    else:
+        a=torch.sqrt(torch.sum(torch.mul(X1,X1),1))
+        b=torch.sqrt(torch.sum(torch.mul(X2,X2),1))
+        ab=dot_product
+        dem=torch.ger(a,b)
+        return 1.0-torch.div(ab,dem)
 
 def predict(D,labels):
     
@@ -75,7 +88,7 @@ def main(args):
         
     norm_factors={'rad_scale':rad_scale,'angle_scale':angle_scale,'length_scale':length_scale,'curve_scale':curve_scale,'poly_scale':poly_scale}
 
-    prefix='data-'+str(dataset)+'_m-triplet_ni-'+str(input_dim)+'_nh-'+str(args.n_hidden)+'_lay-'+str(args.n_layers)+'_hops-'+str(args.hops)+'_napp-'+str(napp)+'_eapp-'+str(eapp)+'_do-'+str(args.dropout)+'_ro-'+str(args.readout)+'_emb-'+str(args.embed_dim)+'_m-'+str(args.margin)+'_red-'+str(args.reduction)+'_mine-'+str(args.strategy)
+    prefix='data-'+str(dataset)+'_m-triplet_ni-'+str(input_dim)+'_nh-'+str(args.n_hidden)+'_lay-'+str(args.n_layers)+'_hops-'+str(args.hops)+'_napp-'+str(napp)+'_eapp-'+str(eapp)+'_do-'+str(args.dropout)+'_ro-'+str(args.readout)+'_emb-'+str(args.embed_dim)+'_m-'+str(args.margin)+'_red-'+str(args.reduction)+'_mine-'+str(args.strategy)+'_pru-'+str(args.discard_zeros)+'_dist-'+str(args.dist)
 
     if args.readout == 'spp':
         extra='_ng-'+str(args.n_grid)
@@ -141,7 +154,7 @@ def main(args):
             test_embeddings[iter,:] = im2vec(bg,model)
             test_labels[iter]       = label
 
-        D=cosine_distance(test_embeddings,train_embeddings)
+        D=all_pairwise_distance(test_embeddings,train_embeddings,args.dist)
 
         predicted=predict(D,train_labels)
         groundtruth=test_labels
@@ -210,6 +223,10 @@ if __name__ == '__main__':
                         help="strategy for anchors, bh, ba")                                    
     parser.add_argument("--embed_dim", type=int, default="192",
                         help="dim to embed")
+    parser.add_argument("--discard_zeros", type=bool,default=False,
+                        help="should i discord 0 weights in loss? "),
+    parser.add_argument("--dist", type=str,default='cos',
+                        help="should i use l2/coss for distance? ")
 
     args = parser.parse_args()
     print(args)
