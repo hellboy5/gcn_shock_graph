@@ -23,6 +23,25 @@ from models.tag_sg_sg_model import Classifier
 from torch.utils.data import DataLoader
 from functools import partial
 
+
+def im2set(inp,layer,model,hidden_dim):
+
+    
+    embedding=torch.zeros(np.sum(inp.batch_num_nodes),hidden_dim)
+
+    def copy_data(m,i,o):
+        embedding.copy_(o.data)
+
+    h=layer.register_forward_hook(copy_data)
+
+    with torch.no_grad():
+        h_x=model(inp)
+
+    h.remove()
+    
+    return F.normalize(embedding)
+
+
 def im2vec(inp,layer,model,hidden_dim):
 
     embedding=torch.zeros(inp.batch_size,hidden_dim)
@@ -60,6 +79,33 @@ def predict(D,labels):
     indices=torch.argmin(D,dim=1)
     predicted_labels=labels[indices]
     return predicted_labels
+
+
+def predict_nbnn(D,labels,nodes_per_graph,samples):
+
+    predicted=torch.zeros(samples,dtype=torch.int32)
+    classes = torch.unique_consecutive(labels)
+
+    beg=0
+    end=nodes_per_graph[0]
+    for idx in range(predicted.shape[0]):
+        sub_D=D[beg:end,:]
+        
+        class_distances=torch.zeros(len(classes))
+        for jdx in range(len(classes)):
+            class_exemplars=torch.where(labels==classes[jdx])
+            start=class_exemplars[0][0]
+            stop=class_exemplars[0][-1]+1
+            min_values,indices=torch.min(sub_D[:,start:stop],dim=1)
+            class_distances[jdx]=torch.sum(min_values)
+            
+        predicted[idx]=classes[torch.argmin(class_distances)]
+
+        if idx < predicted.shape[0]-1:
+            beg=beg+nodes_per_graph[idx]
+            end=beg+nodes_per_graph[idx+1]
+            
+    return predicted
 
 def main(args):
 
@@ -117,7 +163,8 @@ def main(args):
     model_files=glob.glob(prefix+'*pth')
     model_files.sort()
 
-    support_exemplars=args.n_shot*args.k_way
+
+    numb_train=args.n_shot*args.k_way
     
     for state_path in model_files:
         print('Using weights: ',state_path)
@@ -137,8 +184,12 @@ def main(args):
     
         layer=nn.Module()
         for name,module in model.named_children():
-            if name == 'readout_fcn':
-                layer=module
+            if args.nbnn:
+                if name == 'layers':
+                    layer=module[-1]
+            else:
+                if name == 'readout_fcn':
+                    layer=module
 
         model.load_state_dict(torch.load(state_path)['model_state_dict'])
         model.to(device)
@@ -148,23 +199,36 @@ def main(args):
         for idx in tqdm(range(args.episodes)):
 
             bg,label=fsl_dataset[idx]
-            embeddings=im2vec(bg,layer,model,args.n_hidden)
+            
+            if args.nbnn:
+                embeddings=im2set(bg,layer,model,args.n_hidden)
+            else:
+                embeddings=im2vec(bg,layer,model,args.n_hidden)
 
+            if args.nbnn:
+                support_exemplars=np.sum(bg.batch_num_nodes[:numb_train])
+            else:
+                support_exemplars=numb_train
+                
             train_embeddings=embeddings[:support_exemplars,:]
-            train_labels=label[:support_exemplars]
+            train_labels=np.repeat(label[:numb_train],bg.batch_num_nodes[:numb_train])
             
             test_embeddings=embeddings[support_exemplars:,:]
-            test_labels=label[support_exemplars:]
+            test_labels=label[numb_train:]
             
             D=all_pairwise_distance(test_embeddings,train_embeddings,args.dist)
 
-            predicted=predict(D,train_labels)
-            groundtruth=test_labels
+            if args.nbnn:
+                 predicted=predict_nbnn(D,train_labels,bg.batch_num_nodes[numb_train:],test_labels.shape[0])
+            else:
+                predicted=predict(D,train_labels)
 
+            groundtruth=test_labels
+            
             gg=torch.sum(predicted==groundtruth)/float(len(groundtruth))
             class_accuracy[idx]=gg
 
-        print('Class Accuracy:{:4f}%'.format(np.mean(class_accuracy)))
+        print('Class Accuracy:{:4f}%'.format(np.mean(class_accuracy)*100.0))
         del model
         
 
@@ -215,6 +279,8 @@ if __name__ == '__main__':
                         help="samples")
     parser.add_argument("--dist", type=str,default='cos',
                         help="should i use l2/coss for distance? ")
+    parser.add_argument("--nbnn", type=bool, default=False,
+                        help="do nbnn classify")
 
     args = parser.parse_args()
     print(args)
