@@ -1096,7 +1096,22 @@ class ShockGraphDataset(Dataset):
             F_matrix=np.concatenate((sg_features,color_features),axis=1)
         else:
             F_matrix=sg_features
+
+        # get dist features
+        # path_data=fid.get('fgsd')
+        # path_data=np.array(path_data).astype(np.float32)
+        # hist_features=np.histogram(path_data,bins=self.bins,range=(0.0,700.0))[0].astype(np.float32)
+        # norm_hist_features=hist_features/np.sum(hist_features)
         
+        # hist_features=np.zeros((path_data.shape[0],self.bins),dtype=np.float32)
+        # for idx in range(hist_features.shape[0]):
+        #     hist_features[idx,:]=np.histogram(path_data[idx,:],bins=self.bins,range=(0.0,700.0))[0]
+        
+        # norm_hist_features=normalize(hist_features,norm='l1')
+        # F_matrix=np.concatenate((F_matrix,norm_hist_features),axis=1)
+        
+        # print(np.sum(norm_hist_features,1))
+        # print(hist_features.shape)
 
         # get shape context
         # a = SC()
