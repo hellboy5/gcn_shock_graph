@@ -211,8 +211,11 @@ def main(args):
                 support_exemplars=numb_train
                 
             train_embeddings=embeddings[:support_exemplars,:]
-            train_labels=np.repeat(label[:numb_train],bg.batch_num_nodes[:numb_train])
-            
+            if args.nbnn:
+                train_labels=np.repeat(label[:numb_train],bg.batch_num_nodes[:numb_train])
+            else:
+                train_labels=label[:numb_train]
+                
             test_embeddings=embeddings[support_exemplars:,:]
             test_labels=label[numb_train:]
             
