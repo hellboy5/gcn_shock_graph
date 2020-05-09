@@ -8,7 +8,7 @@ from .cov_pooling import CovPooling
 
 class Classifier(nn.Module):
     def __init__(self, in_dim, hidden_dim,embed_dim,hidden_layers,hops,readout,
-                 activation_func,dropout,grid,K,device):
+                 activation_func,dropout,local,norm,grid,K,device):
         super(Classifier, self).__init__()
         self.device      = device
         self.readout     = readout
@@ -17,7 +17,9 @@ class Classifier(nn.Module):
         self.grid        = grid
         self.K           = K
         self.hidden_dim  = hidden_dim
-
+        self.local       = local
+        self.norm        = norm
+        
         self.layers.append(conv.TAGConv(in_dim,hidden_dim,hops,activation=activation_func))
                 
         # hidden layers
@@ -26,7 +28,10 @@ class Classifier(nn.Module):
             
         # dropout layer
         self.dropout=nn.Dropout(p=dropout)
-                
+
+        if self.local:
+            return
+        
         # readout layer
         if self.readout == 'max':
             self.readout_fcn = conv.MaxPooling()
@@ -85,15 +90,22 @@ class Classifier(nn.Module):
             
         g.ndata['h'] = h
 
-        
-        if self.readout == 'spp':
-            hg=self.readout_fcn(g,g.ndata['h'],g.ndata['x'])
-            hg=torch.flatten(hg,1)
+        # extract features from each node
+        if self.local:
+            hg=g.ndata['h']
+        #extract global features from graph
         else:
-            hg=self.readout_fcn(g,g.ndata['h'])
+            if self.readout == 'spp':
+                hg=self.readout_fcn(g,g.ndata['h'],g.ndata['x'])
+                hg=torch.flatten(hg,1)
+            else:
+                hg=self.readout_fcn(g,g.ndata['h'])
+                
+            hg=self.embed(hg)
+            
+        if self.norm:
+            hg=F.normalize(hg)
 
-        hg=self.embed(hg)
-        hg=F.normalize(hg)
         return hg
 
 
