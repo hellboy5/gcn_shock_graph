@@ -37,7 +37,8 @@ def predict(D,labels):
 
     classes = torch.unique_consecutive(labels)
     d2c=torch.zeros(D.shape[0],len(classes),dtype=torch.float32)
-    
+    nn_classes=torch.zeros(D.shape[0],dtype=torch.int32)
+        
     for idx in range(d2c.shape[0]):
         sub_D=D[idx,:]
         class_distances=torch.zeros(len(classes))
@@ -49,14 +50,16 @@ def predict(D,labels):
             class_distances[jdx]=max_value
             
         d2c[idx,:]=class_distances
-            
-    return d2c
+        nn_classes[idx]=classes[torch.argmax(class_distances)]
+                
+    return d2c,nn_classes
 
 
 def predict_nbnn(D,labels,nodes_per_graph,samples):
 
     classes = torch.unique_consecutive(labels)
     d2c=torch.zeros(samples,len(classes),dtype=torch.float32)
+    nn_classes=torch.zeros(samples,dtype=torch.int32)
     
     beg=0
     end=nodes_per_graph[0]
@@ -72,12 +75,13 @@ def predict_nbnn(D,labels,nodes_per_graph,samples):
             class_distances[jdx]=torch.sum(max_values)
             
         d2c[idx,:]=class_distances
-
+        nn_classes[idx]=classes[torch.argmax(class_distances)]
+        
         if idx < d2c.shape[0]-1:
             beg=beg+nodes_per_graph[idx]
             end=beg+nodes_per_graph[idx+1]
             
-    return d2c
+    return d2c,nn_classes
 
 
 
@@ -176,14 +180,15 @@ def main(args):
             train_labels=label[:numb_train]
                 
         test_embeddings=embeddings[support_exemplars:,:]
+        ground_truth=label[numb_train:]
         _,test_labels=torch.unique_consecutive(label[numb_train:],return_inverse=True)
             
         D=cosine_similarity(test_embeddings,train_embeddings)
 
         if args.local:
-            prediction=predict_nbnn(D,train_labels,bg.batch_num_nodes[numb_train:],test_labels.shape[0])
+            prediction,nn_classes=predict_nbnn(D,train_labels,bg.batch_num_nodes[numb_train:],test_labels.shape[0])
         else:
-            prediction=predict(D,train_labels)
+            prediction,nn_classes=predict(D,train_labels)
 
         loss = loss_func(prediction,test_labels)
         optimizer.zero_grad()
@@ -191,10 +196,11 @@ def main(args):
         optimizer.step()
         episode_loss = loss.detach().item()
         avg_loss = (episode_loss+avg_loss)
+        acc=torch.sum(nn_classes==ground_truth)/float(len(ground_truth))
+        
+        print('Episode {}, Loss {:.6f}, Acc {:.6f}'.format(idx, episode_loss,acc*100))
 
-        print('Episode {}, Loss {:.6f}, Loss avg {:.6f}'.format(idx, episode_loss,avg_loss/(idx+1)))
-
-        if (idx+1) % 25 == 0:
+        if (idx+1) % 500 == 0:
             path=prefix+'_episode_'+str(idx+1).zfill(4)+'.pth'
             torch.save({
                 'episode': idx,
