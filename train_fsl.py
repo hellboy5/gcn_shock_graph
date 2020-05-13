@@ -24,14 +24,23 @@ from torch.utils.data import DataLoader
 from functools import partial
 
 
-def cosine_similarity(X1,X2):
-    
+
+
+def all_pairwise_similarity(X1,X2,distance='l2'):
+
     dot_product=torch.matmul(X1,torch.t(X2))
-    a=torch.sqrt(torch.sum(torch.mul(X1,X1),1))
-    b=torch.sqrt(torch.sum(torch.mul(X2,X2),1))
-    ab=dot_product
-    dem=torch.ger(a,b)
-    return torch.div(ab,dem)
+    if distance == 'l2':
+        a=torch.sum(torch.mul(X1,X1),1)
+        b=torch.sum(torch.mul(X2,X2),1)
+        ab=dot_product
+        D=a.unsqueeze_(1)-2*ab+b.unsqueeze_(0)
+        return 1.0/D
+    else:
+        a=torch.sqrt(torch.sum(torch.mul(X1,X1),1))
+        b=torch.sqrt(torch.sum(torch.mul(X2,X2),1))
+        ab=dot_product
+        dem=torch.ger(a,b)
+        return torch.div(ab,dem)
 
 def predict(D,labels):
 
@@ -162,20 +171,24 @@ def main(args):
 
     numb_train=args.n_shot*args.k_way
         
-    avg_loss = 0
-    for idx in range(args.episodes):
+    for idx in tqdm(range(args.episodes)):
         bg,label=trainset[idx]
         
         embeddings = model(bg)
 
+        nodes_per_graph=bg.batch_num_nodes
+        
+        if args.local and args.readout == 'spp':
+            nodes_per_graph=[args.n_grid*args.n_grid]*bg.batch_size
+
         if args.local:
-            support_exemplars=np.sum(bg.batch_num_nodes[:numb_train])
+            support_exemplars=np.sum(nodes_per_graph[:numb_train])
         else:
             support_exemplars=numb_train
 
         train_embeddings=embeddings[:support_exemplars,:]
         if args.local:
-            train_labels=np.repeat(label[:numb_train],bg.batch_num_nodes[:numb_train])
+            train_labels=np.repeat(label[:numb_train],nodes_per_graph[:numb_train])
         else:
             train_labels=label[:numb_train]
                 
@@ -183,10 +196,10 @@ def main(args):
         ground_truth=label[numb_train:]
         _,test_labels=torch.unique_consecutive(label[numb_train:],return_inverse=True)
             
-        D=cosine_similarity(test_embeddings,train_embeddings)
+        D=all_pairwise_similarity(test_embeddings,train_embeddings,args.dist)
 
         if args.local:
-            prediction,nn_classes=predict_nbnn(D,train_labels,bg.batch_num_nodes[numb_train:],test_labels.shape[0])
+            prediction,nn_classes=predict_nbnn(D,train_labels,nodes_per_graph[numb_train:],test_labels.shape[0])
         else:
             prediction,nn_classes=predict(D,train_labels)
 
@@ -194,11 +207,9 @@ def main(args):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        episode_loss = loss.detach().item()
-        avg_loss = (episode_loss+avg_loss)
         acc=torch.sum(nn_classes==ground_truth)/float(len(ground_truth))
-        
-        print('Episode {}, Loss {:.6f}, Acc {:.6f}'.format(idx, episode_loss,acc*100))
+
+        print('Episode {}, Loss {:.6f}, Acc {:.6f}'.format(idx, loss,acc*100))
 
         if (idx+1) % 500 == 0:
             path=prefix+'_episode_'+str(idx+1).zfill(4)+'.pth'
