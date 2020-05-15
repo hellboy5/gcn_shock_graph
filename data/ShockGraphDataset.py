@@ -588,7 +588,7 @@ class ShockGraphDataset(Dataset):
         grid_map=defaultdict(list)
         
         for idx in range(F_matrix.shape[0]):
-            pts=F_matrix[idx,:]
+            pts=np.clip(F_matrix[idx,:2],0.0,self.image_size-0.001)
             xloc=max(np.searchsorted(grid,pts[0])-1,0,0)
             yloc=max(np.searchsorted(grid,pts[1])-1,0,0)
             grid_map[(xloc,yloc)].append(idx)
@@ -1015,7 +1015,7 @@ class ShockGraphDataset(Dataset):
             mask=np.delete(mask,rows,axis=0)
 
         return F_matrix,adj_matrix,mask
-        
+
     def __unwrap_data(self,F_matrix):
 
         #make a copy
@@ -1190,7 +1190,7 @@ class ShockGraphDataset(Dataset):
 
         # resort to be safe
         new_adj_matrix,new_F_matrix,new_mask=self.__compute_sorted_order(F_combined_pruned,adj_matrix_pruned,mask_pruned)
-        
+
         return new_adj_matrix,(new_F_matrix,new_mask)
 
     def __create_graph(self,adj_matrix):
