@@ -34,7 +34,7 @@ def all_pairwise_similarity(X1,X2,distance='l2'):
         b=torch.sum(torch.mul(X2,X2),1)
         ab=dot_product
         D=a.unsqueeze_(1)-2*ab+b.unsqueeze_(0)
-        return 1.0/D
+        return -D
     else:
         a=torch.sqrt(torch.sum(torch.mul(X1,X1),1))
         b=torch.sqrt(torch.sum(torch.mul(X2,X2),1))
@@ -211,13 +211,13 @@ def main(args):
 
         print('Episode {}, Loss {:.6f}, Acc {:.6f}'.format(idx, loss,acc*100))
 
-        if (idx+1) % 500 == 0:
-            path=prefix+'_episode_'+str(idx+1).zfill(4)+'.pth'
+        if (idx+1) % 25000 == 0:
+            path=prefix+'_episode_'+str(idx+1).zfill(6)+'.pth'
             torch.save({
                 'episode': idx,
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
-                'loss': episode_loss}, path)
+                'loss': loss}, path)
 
 
 
