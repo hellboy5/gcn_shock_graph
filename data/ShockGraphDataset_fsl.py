@@ -419,6 +419,23 @@ mignt_map={'n01930112':0,
            'n04522168':18,
            'n07613480':19}
 
+mignv_map={'n01855672':0,
+           'n02091244':1,
+           'n02114548':2,
+           'n02138441':3,
+           'n02174001':4,
+           'n02950826':5,
+           'n02971356':6,
+           'n02981792':7,
+           'n03075370':8,
+           'n03417042':9,
+           'n03535780':10,
+           'n03584254':11,
+           'n03770439':12,
+           'n03773504':13,
+           'n03980874':14,
+           'n09256479':15}
+
 def fixAngleMPiPi_new_vector(vec):
     output=np.zeros(np.shape(vec))
     it=np.nditer(vec,flags=['f_index'])
@@ -499,6 +516,9 @@ class ShockGraphDataset(Dataset):
         elif dataset=='mignt':
             print('Using mini imagenet test dataset')
             self.class_mapping=mignt_map
+        elif dataset=='mignv':
+            print('Using mini imagenet val dataset')
+            self.class_mapping=mignv_map
         elif dataset=='office31':
             print('Using office 31 dataset')
             self.class_mapping=office31_map
@@ -641,7 +661,7 @@ class ShockGraphDataset(Dataset):
         grid_map=defaultdict(list)
         
         for idx in range(F_matrix.shape[0]):
-            pts=F_matrix[idx,:]
+            pts=np.clip(F_matrix[idx,:2],0.0,self.image_size-0.001)
             xloc=max(np.searchsorted(grid,pts[0])-1,0,0)
             yloc=max(np.searchsorted(grid,pts[1])-1,0,0)
             grid_map[(xloc,yloc)].append(idx)
@@ -670,7 +690,7 @@ class ShockGraphDataset(Dataset):
             adj_matrix,features=self.__read_shock_graph(fid)
 
             obj=os.path.basename(fid)
-            if self.dataset=='tign' or self.dataset=='mign' or self.dataset=='mignt':
+            if self.dataset=='tign' or self.dataset=='mign' or self.dataset=='mignt' or self.dataset=='mignv':
                 class_name=obj[:obj.find('_')]
             else:
                 obj=re.split(r'[0-9].*',obj)[0]
@@ -1198,7 +1218,7 @@ class ShockGraphDataset(Dataset):
         self.center=np.array([self.image_size/2.0,self.image_size/2.0])
         self.factor=(self.image_size/2.0)*1.2
 
-        F_combined_pruned,adj_matrix_pruned,mask_pruned=self.__prune_ob(F_matrix_unwrapped,adj_matrix,mask,self.image_size)
+        #F_combined_pruned,adj_matrix_pruned,mask_pruned=self.__prune_ob(F_matrix_unwrapped,adj_matrix,mask,self.image_size)
             
         if self.flip_pp:
             F_combined_pruned[:,1]=((self.width-1)-F_combined_pruned[:,1])-self.width/2
@@ -1230,9 +1250,9 @@ class ShockGraphDataset(Dataset):
             F_combined_pruned=F_combined_pruned*mask_pruned
 
         # resort to be safe
-        new_adj_matrix,new_F_matrix,new_mask=self.__compute_sorted_order(F_combined_pruned,adj_matrix_pruned,mask_pruned)
-        
-        return new_adj_matrix,(new_F_matrix,new_mask)
+        #new_adj_matrix,new_F_matrix,new_mask=self.__compute_sorted_order(F_combined_pruned,adj_matrix_pruned,mask_pruned)
+
+        return adj_matrix,(F_matrix_unwrapped,mask)
 
     def __create_graph(self,adj_matrix):
     
