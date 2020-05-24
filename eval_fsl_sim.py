@@ -24,14 +24,23 @@ from torch.utils.data import DataLoader
 from functools import partial
 
 
-def cosine_similarity(X1,X2):
-    
+
+
+def all_pairwise_similarity(X1,X2,distance='l2'):
+
     dot_product=torch.matmul(X1,torch.t(X2))
-    a=torch.sqrt(torch.sum(torch.mul(X1,X1),1))
-    b=torch.sqrt(torch.sum(torch.mul(X2,X2),1))
-    ab=dot_product
-    dem=torch.ger(a,b)
-    return torch.div(ab,dem)
+    if distance == 'l2':
+        a=torch.sum(torch.mul(X1,X1),1)
+        b=torch.sum(torch.mul(X2,X2),1)
+        ab=dot_product
+        D=a.unsqueeze_(1)-2*ab+b.unsqueeze_(0)
+        return -D
+    else:
+        a=torch.sqrt(torch.sum(torch.mul(X1,X1),1))
+        b=torch.sqrt(torch.sum(torch.mul(X2,X2),1))
+        ab=dot_product
+        dem=torch.ger(a,b)
+        return torch.div(ab,dem)
 
 def predict(D,labels):
 
@@ -121,7 +130,7 @@ def main(args):
     norm_factors={'rad_scale':rad_scale,'angle_scale':angle_scale,'length_scale':length_scale,'curve_scale':curve_scale,'poly_scale':poly_scale}
 
     prefix='data-'+str(bdir)+':'+'mign'+'_m-tag_ni-'+str(input_dim)+'_nh-'+str(args.n_hidden)+'_lay-'+str(args.n_layers)+'_napp-'+str(napp)+'_eapp-'+str(eapp)+'_ro-'+str(args.readout)
-    prefix+='_loc-'+str(args.local)+'_nshot-'+str(args.n_shot)+'_kway-'+str(args.k_way)+'_samp-'+str(args.samples)+'_epi-'+str(args.episodes)+'_norm-'+str(args.norm)
+    prefix+='_loc-'+str(args.local)+'_nshot-'+str(args.n_shot)+'_kway-'+str(args.k_way)+'_samp-'+str(args.samples)+'_steps-'+str(args.steps)+'_norm-'+str(args.norm)+'_dist-'+str(args.dist)
 
     if args.local == False:
         prefix += '_emb-'+str(args.embed_dim)
@@ -151,7 +160,7 @@ def main(args):
                            args.n_layers,
                            args.hops,
                            args.readout,
-                           F.relu,
+                           None,
                            args.dropout,
                            args.local,
                            args.norm,
@@ -171,14 +180,19 @@ def main(args):
         
             embeddings = model(bg)
 
+            nodes_per_graph=bg.batch_num_nodes
+
+            if args.local and args.readout == 'spp':
+                nodes_per_graph=[args.n_grid*args.n_grid]*bg.batch_size
+
             if args.local:
-                support_exemplars=np.sum(bg.batch_num_nodes[:numb_train])
+                support_exemplars=np.sum(nodes_per_graph[:numb_train])
             else:
                 support_exemplars=numb_train
 
             train_embeddings=embeddings[:support_exemplars,:]
             if args.local:
-                train_labels=np.repeat(label[:numb_train],bg.batch_num_nodes[:numb_train])
+                train_labels=np.repeat(label[:numb_train],nodes_per_graph[:numb_train])
             else:
                 train_labels=label[:numb_train]
                 
@@ -186,10 +200,10 @@ def main(args):
             ground_truth=label[numb_train:]
             _,test_labels=torch.unique_consecutive(label[numb_train:],return_inverse=True)
             
-            D=cosine_similarity(test_embeddings,train_embeddings)
+            D=all_pairwise_similarity(test_embeddings,train_embeddings,args.dist)
 
             if args.local:
-                prediction,nn_classes=predict_nbnn(D,train_labels,bg.batch_num_nodes[numb_train:],test_labels.shape[0])
+                prediction,nn_classes=predict_nbnn(D,train_labels,nodes_per_graph[numb_train:],test_labels.shape[0])
             else:
                 prediction,nn_classes=predict(D,train_labels)
 
@@ -240,6 +254,8 @@ if __name__ == '__main__':
                         help="normalize or not")
     parser.add_argument("--local", type=bool, default=False,
                         help="do nbnn classify")
+    parser.add_argument("--steps", type=int, default=3,
+                        help="steps to optimize")
 
     args = parser.parse_args()
     print(args)
