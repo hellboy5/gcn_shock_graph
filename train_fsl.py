@@ -129,7 +129,7 @@ def main(args):
     norm_factors={'rad_scale':rad_scale,'angle_scale':angle_scale,'length_scale':length_scale,'curve_scale':curve_scale,'poly_scale':poly_scale}
 
     prefix='data-'+str(bdir)+':'+str(dataset)+'_m-tag_ni-'+str(input_dim)+'_nh-'+str(args.n_hidden)+'_lay-'+str(args.n_layers)+'_napp-'+str(napp)+'_eapp-'+str(eapp)+'_ro-'+str(args.readout)
-    prefix+='_loc-'+str(args.local)+'_nshot-'+str(args.n_shot)+'_kway-'+str(args.k_way)+'_samp-'+str(args.samples)+'_epi-'+str(args.episodes)+'_norm-'+str(args.norm)
+    prefix+='_loc-'+str(args.local)+'_nshot-'+str(args.n_shot)+'_kway-'+str(args.k_way)+'_samp-'+str(args.samples)+'_epi-'+str(args.episodes)+'_norm-'+str(args.norm)+'_dist-'+str(args.dist)
 
     if args.local == False:
         prefix += '_emb-'+str(args.embed_dim)
@@ -152,7 +152,7 @@ def main(args):
                        args.n_layers,
                        args.hops,
                        args.readout,
-                       F.relu,
+                       None,
                        args.dropout,
                        args.local,
                        args.norm,
@@ -211,7 +211,7 @@ def main(args):
 
         print('Episode {}, Loss {:.6f}, Acc {:.6f}'.format(idx, loss,acc*100))
 
-        if (idx+1) % 25000 == 0:
+        if (idx+1) % 1000 == 0:
             path=prefix+'_episode_'+str(idx+1).zfill(6)+'.pth'
             torch.save({
                 'episode': idx,

@@ -18,80 +18,40 @@ import json
 import torch.nn.functional as F
 import argparse
 import torch.nn as nn
-from data.ShockGraphDataset_fsl import *
+from data.ShockGraphDataset import *
 from models.embedding_network import Classifier
 from torch.utils.data import DataLoader
 from functools import partial
 
 
+def im2vec(inp,model):
 
-
-def all_pairwise_similarity(X1,X2,distance='l2'):
+    with torch.no_grad():
+        embedding=model(inp)
+        
+    return embedding
+    
+def all_pairwise_distance(X1,X2,distance='l2'):
 
     dot_product=torch.matmul(X1,torch.t(X2))
     if distance == 'l2':
         a=torch.sum(torch.mul(X1,X1),1)
         b=torch.sum(torch.mul(X2,X2),1)
         ab=dot_product
-        D=a.unsqueeze_(1)-2*ab+b.unsqueeze_(0)
-        return -D
+        D=torch.sqrt(a.unsqueeze_(1)-2*ab+b.unsqueeze_(0))
+        return D
     else:
         a=torch.sqrt(torch.sum(torch.mul(X1,X1),1))
         b=torch.sqrt(torch.sum(torch.mul(X2,X2),1))
         ab=dot_product
         dem=torch.ger(a,b)
-        return torch.div(ab,dem)
+        return 1.0-torch.div(ab,dem)
 
 def predict(D,labels):
-
-    classes = torch.unique_consecutive(labels)
-    d2c=torch.zeros(D.shape[0],len(classes),dtype=torch.float32)
-    nn_classes=torch.zeros(D.shape[0],dtype=torch.int32)
-        
-    for idx in range(d2c.shape[0]):
-        sub_D=D[idx,:]
-        class_distances=torch.zeros(len(classes))
-        for jdx in range(len(classes)):
-            class_exemplars=torch.where(labels==classes[jdx])
-            start=class_exemplars[0][0]
-            stop=class_exemplars[0][-1]+1
-            max_value=torch.max(sub_D[start:stop])
-            class_distances[jdx]=max_value
-            
-        d2c[idx,:]=class_distances
-        nn_classes[idx]=classes[torch.argmax(class_distances)]
-                
-    return d2c,nn_classes
-
-
-def predict_nbnn(D,labels,nodes_per_graph,samples):
-
-    classes = torch.unique_consecutive(labels)
-    d2c=torch.zeros(samples,len(classes),dtype=torch.float32)
-    nn_classes=torch.zeros(samples,dtype=torch.int32)
     
-    beg=0
-    end=nodes_per_graph[0]
-    for idx in range(d2c.shape[0]):
-        sub_D=D[beg:end,:]
-        
-        class_distances=torch.zeros(len(classes))
-        for jdx in range(len(classes)):
-            class_exemplars=torch.where(labels==classes[jdx])
-            start=class_exemplars[0][0]
-            stop=class_exemplars[0][-1]+1
-            max_values,indices=torch.max(sub_D[:,start:stop],dim=1)
-            class_distances[jdx]=torch.sum(max_values)
-            
-        d2c[idx,:]=class_distances
-        nn_classes[idx]=classes[torch.argmax(class_distances)]
-        
-        if idx < d2c.shape[0]-1:
-            beg=beg+nodes_per_graph[idx]
-            end=beg+nodes_per_graph[idx+1]
-            
-    return d2c,nn_classes
-
+    indices=torch.argmin(D,dim=1)
+    predicted_labels=labels[indices]
+    return predicted_labels
 
 
 def main(args):
@@ -129,27 +89,32 @@ def main(args):
         
     norm_factors={'rad_scale':rad_scale,'angle_scale':angle_scale,'length_scale':length_scale,'curve_scale':curve_scale,'poly_scale':poly_scale}
 
-    prefix='data-'+str(bdir)+':'+'mign'+'_m-tag_ni-'+str(input_dim)+'_nh-'+str(args.n_hidden)+'_lay-'+str(args.n_layers)+'_napp-'+str(napp)+'_eapp-'+str(eapp)+'_ro-'+str(args.readout)
+    prefix='data-'+str(bdir)+':'+str(dataset)+'_m-tag_ni-'+str(input_dim)+'_nh-'+str(args.n_hidden)+'_lay-'+str(args.n_layers)+'_napp-'+str(napp)+'_eapp-'+str(eapp)+'_ro-'+str(args.readout)
     prefix+='_loc-'+str(args.local)+'_nshot-'+str(args.n_shot)+'_kway-'+str(args.k_way)+'_samp-'+str(args.samples)+'_epi-'+str(args.episodes)+'_norm-'+str(args.norm)+'_dist-'+str(args.dist)
-
-    if args.local == False:
-        prefix += '_emb-'+str(args.embed_dim)
         
     if args.readout == 'spp':
         extra='_ng-'+str(args.n_grid)
         prefix+=extra
 
     print('saving to prefix: ', prefix)
-    test_episodes=600
-    # create train dataset
-    fsl_dataset=ShockGraphDataset(test_dir,dataset,norm_factors,n_shot=args.n_shot,k_way=args.k_way,episodes=test_episodes,test_samples=args.samples,
-                                  node_app=napp,edge_app=eapp,cache=True,symmetric=symm_io,data_augment=False,grid=args.n_grid)
+
+
+    # create train and test dataset
+    trainset=ShockGraphDataset(train_dir,dataset,norm_factors,node_app=napp,edge_app=eapp,cache=True,symmetric=symm_io,
+                               data_augment=False,grid=args.n_grid)
+    
+    testset=ShockGraphDataset(test_dir,dataset,norm_factors,node_app=napp,edge_app=eapp,cache=True,symmetric=symm_io,
+                              data_augment=False,grid=args.n_grid)
+
+    # Use PyTorch's DataLoader and the collate function
+    # defined before.
+    data_loader_train = DataLoader(trainset, batch_size=1, shuffle=False,
+                                   collate_fn=partial(collate,device_name=device))
+    data_loader_test  = DataLoader(testset, batch_size=1, shuffle=False,
+                                   collate_fn=partial(collate,device_name=device))    
 
     model_files=glob.glob(prefix+'*pth')
     model_files.sort()
-
-
-    numb_train=args.n_shot*args.k_way
     
     for state_path in model_files:
         print('Using weights: ',state_path)
@@ -167,50 +132,48 @@ def main(args):
                            args.n_grid,
                            args.K,
                            device)
-
     
         model.load_state_dict(torch.load(state_path)['model_state_dict'])
         model.to(device)
         model.eval()
 
-        class_accuracy=np.zeros(test_episodes)
-        for idx in tqdm(range(test_episodes)):
+        # get train embeddings and labels
+        train_embeddings=torch.zeros((len(data_loader_train),args.n_hidden))
+        train_labels=np.zeros(len(data_loader_train),dtype=np.int32)
+        for iter, (bg, label) in enumerate(data_loader_train):
+            train_embeddings[iter,:] = im2vec(bg,model)
+            train_labels[iter]       = label
 
-            bg,label=fsl_dataset[idx]
-        
-            embeddings = model(bg)
+        # get test embeddings and labels
+        test_embeddings=torch.zeros((len(data_loader_test),args.n_hidden))
+        test_labels=np.zeros(len(data_loader_test),dtype=np.int32)
+        for iter, (bg, label) in enumerate(data_loader_test):
+            test_embeddings[iter,:] = im2vec(bg,model)
+            test_labels[iter]       = label
 
-            nodes_per_graph=bg.batch_num_nodes
+        D=all_pairwise_distance(test_embeddings,train_embeddings,args.dist)
 
-            if args.local and args.readout == 'spp':
-                nodes_per_graph=[args.n_grid*args.n_grid]*bg.batch_size
+        predicted=predict(D,train_labels)
+        groundtruth=test_labels
 
-            if args.local:
-                support_exemplars=np.sum(nodes_per_graph[:numb_train])
+        confusion_matrix=np.zeros((n_classes,n_classes))
+        for ind in range(groundtruth.shape[0]):
+            if groundtruth[ind]==predicted[ind]:
+                confusion_matrix[groundtruth[ind],groundtruth[ind]]+=1
             else:
-                support_exemplars=numb_train
+                confusion_matrix[groundtruth[ind],predicted[ind]]+=1
 
-            train_embeddings=embeddings[:support_exemplars,:]
-            if args.local:
-                train_labels=np.repeat(label[:numb_train],nodes_per_graph[:numb_train])
-            else:
-                train_labels=label[:numb_train]
-                
-            test_embeddings=embeddings[support_exemplars:,:]
-            ground_truth=label[numb_train:]
-            _,test_labels=torch.unique_consecutive(label[numb_train:],return_inverse=True)
-            
-            D=all_pairwise_similarity(test_embeddings,train_embeddings,args.dist)
+        confusion_matrix=(confusion_matrix/np.sum(confusion_matrix,1)[:,None])*100
 
-            if args.local:
-                prediction,nn_classes=predict_nbnn(D,train_labels,nodes_per_graph[numb_train:],test_labels.shape[0])
-            else:
-                prediction,nn_classes=predict(D,train_labels)
+        #print(confusion_matrix)
 
-            acc=torch.sum(nn_classes==ground_truth)/float(len(ground_truth))
-            class_accuracy[idx]=acc
+        mAP=np.diagonal(confusion_matrix)
 
-        print('Class Accuracy:{:4f}%'.format(np.mean(class_accuracy)*100.0))
+        print(mAP)
+        print("mAP: ",np.mean(mAP))
+        print('Accuracy of argmax predictedions on the test set: {:4f}%'.format(
+            (groundtruth == predicted).sum().item() / len(groundtruth) * 100))
+
         del model
 
 if __name__ == '__main__':
