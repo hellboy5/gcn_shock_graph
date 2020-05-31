@@ -1157,7 +1157,7 @@ class ShockGraphDataset(Dataset):
         self.center=np.array([self.image_size/2.0,self.image_size/2.0])
         self.factor=(self.image_size/2.0)*1.2
 
-        F_combined_pruned,adj_matrix_pruned,mask_pruned=self.__prune_ob(F_matrix_unwrapped,adj_matrix,mask,self.image_size)
+        #F_combined_pruned,adj_matrix_pruned,mask_pruned=self.__prune_ob(F_matrix_unwrapped,adj_matrix,mask,self.image_size)
             
         if self.flip_pp:
             F_combined_pruned[:,1]=((self.width-1)-F_combined_pruned[:,1])-self.width/2
@@ -1189,9 +1189,9 @@ class ShockGraphDataset(Dataset):
             F_combined_pruned=F_combined_pruned*mask_pruned
 
         # resort to be safe
-        new_adj_matrix,new_F_matrix,new_mask=self.__compute_sorted_order(F_combined_pruned,adj_matrix_pruned,mask_pruned)
+        #new_adj_matrix,new_F_matrix,new_mask=self.__compute_sorted_order(F_combined_pruned,adj_matrix_pruned,mask_pruned)
 
-        return new_adj_matrix,(new_F_matrix,new_mask)
+        return adj_matrix,(F_matrix_unwrapped,mask)
 
     def __create_graph(self,adj_matrix):
     
