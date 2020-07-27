@@ -60,6 +60,72 @@ office31_map={'back_pack':0,
               'trash_can':30}
 
 
+officehome_map={'Alarm_Clock':0,
+                'Backpack':1,
+                'Batteries':2,
+                'Bed':3,
+                'Bike':4,
+                'Bottle':5,
+                'Bucket':6,
+                'Calculator':7,
+                'Calendar':8,
+                'Candles':9,
+                'Chair':10,
+                'Clipboards':11,
+                'Computer':12,
+                'Couch':13,
+                'Curtains':14,
+                'Desk_Lamp':15,
+                'Drill':16,
+                'Eraser':17,
+                'Exit_Sign':18,
+                'Fan':19,
+                'File_Cabinet':20,
+                'Flipflops':21,
+                'Flowers':22,
+                'Folder':23,
+                'Fork':24,
+                'Glasses':25,
+                'Hammer':26,
+                'Helmet':27,
+                'Kettle':28,
+                'Keyboard':29,
+                'Knives':30,
+                'Lamp_Shade':31,
+                'Laptop':32,
+                'Marker':33,
+                'Monitor':34,
+                'Mop':35,
+                'Mouse':36,
+                'Mug':37,
+                'Notebook':38,
+                'Oven':39,
+                'Pan':40,
+                'Paper_Clip':41,
+                'Pen':42,
+                'Pencil':43,
+                'Postit_Notes':44,
+                'Printer':45,
+                'Push_Pin':46,
+                'Radio':47,
+                'Refrigerator':48,
+                'Ruler':49,
+                'Scissors':50,
+                'Screwdriver':51,
+                'Shelf':52,
+                'Sink':53,
+                'Sneakers':54,
+                'Soda':55,
+                'Speaker':56,
+                'Spoon':57,
+                'TV':58,
+                'Table':59,
+                'Telephone':60,
+                'ToothBrush':61,
+                'Toys':62,
+                'Trash_Can':63,
+                'Webcam':64}
+
 tign_map={'n01443537':0,
           'n01629819':1,
           'n01641577':2,
@@ -261,6 +327,136 @@ tign_map={'n01443537':0,
           'n09428293':198,
           'n12267677':199}
 
+mign_map={'n01532829':0,
+          'n01558993':1,
+          'n01704323':2,
+          'n01749939':3,
+          'n01770081':4,
+          'n01843383':5,
+          'n01910747':6,
+          'n02074367':7,
+          'n02089867':8,
+          'n02091831':9,
+          'n02101006':10,
+          'n02105505':11,
+          'n02108089':12,
+          'n02108551':13,
+          'n02108915':14,
+          'n02111277':15,
+          'n02113712':16,
+          'n02120079':17,
+          'n02165456':18,
+          'n02457408':19,
+          'n02606052':20,
+          'n02687172':21,
+          'n02747177':22,
+          'n02795169':23,
+          'n02823428':24,
+          'n02966193':25,
+          'n03017168':26,
+          'n03047690':27,
+          'n03062245':28,
+          'n03207743':29,
+          'n03220513':30,
+          'n03337140':31,
+          'n03347037':32,
+          'n03400231':33,
+          'n03476684':34,
+          'n03527444':35,
+          'n03676483':36,
+          'n03838899':37,
+          'n03854065':38,
+          'n03888605':39,
+          'n03908618':40,
+          'n03924679':41,
+          'n03998194':42,
+          'n04067472':43,
+          'n04243546':44,
+          'n04251144':45,
+          'n04258138':46,
+          'n04275548':47,
+          'n04296562':48,
+          'n04389033':49,
+          'n04435653':50,
+          'n04443257':51,
+          'n04509417':52,
+          'n04515003':53,
+          'n04596742':54,
+          'n04604644':55,
+          'n04612504':56,
+          'n06794110':57,
+          'n07584110':58,
+          'n07697537':59,
+          'n07747607':60,
+          'n09246464':61,
+          'n13054560':62,
+          'n13133613':63}
+
+pacs_map={'dog':0,
+          'elephant':1,
+          'giraffe':2,
+          'guitar':3,
+          'horse':4,
+          'house':5,
+          'person':6}
+
+vlcs_map={'bird':0,
+          'car':1,
+          'chair':2,
+          'dog':3,
+          'person':4}
+
+icon_map={"airplane":0,
+          "arrow_directions":1,
+          "ball":2,
+          "biking":3,
+          "bird":4,
+          "blade":5,
+          "boat":6,
+          "books":7,
+          "building":8,
+          "bunny_ears":9,
+          "cartwheeling":10,
+          "clock":11,
+          "cloud":12,
+          "disk":13,
+          "drinks":14,
+          "emotion_face":15,
+          "envelope":16,
+          "family":17,
+          "fast_train":18,
+          "feline":19,
+          "flag":20,
+          "flower":21,
+          "footwear":22,
+          "golfing":23,
+          "hand":24,
+          "hat":25,
+          "heart":26,
+          "holding_hands":27,
+          "japanese_ideograph":28,
+          "kiss":29,
+          "lock":30,
+          "mailbox":31,
+          "marine_animals":32,
+          "medal":33,
+          "money":34,
+          "monkey":35,
+          "moon":36,
+          "mountain":37,
+          "numbers":38,
+          "phone":39,
+          "prohibit_sign":40,
+          "star":41,
+          "surfing":42,
+          "tree":43,
+          "umbrella":44,
+          "vehicle":45,
+          "water_polo":46,
+          "worker":47,
+          "wrestling":48,
+          "writing_utensil":49}
+
 def fixAngleMPiPi_new_vector(vec):
     output=np.zeros(np.shape(vec))
     it=np.nditer(vec,flags=['f_index'])
@@ -289,11 +485,12 @@ def fixAngle2PiPi_new_vector(vec):
 
 class ShockGraphDataset(Dataset):
     'Generates data for Keras'
-    def __init__(self,directory,dataset,norm_factors,app=False,cache=True,symmetric=False,data_augment=False,flip_pp=False,grid=8,self_loop=False,dsm_norm=True):
+    def __init__(self,directory,dataset,norm_factors,node_app=False,edge_app=False,cache=True,symmetric=False,data_augment=False,flip_pp=False,grid=8,self_loop=False,dsm_norm=True,domains=[]):
         'Initialization'
         
         self.directory = directory
-        self.app=app
+        self.node_app=node_app
+        self.edge_app=edge_app
         self.cache=cache
         self.symmetric = symmetric
         self.files=[]
@@ -315,7 +512,8 @@ class ShockGraphDataset(Dataset):
         self.dsm_norm=dsm_norm
         self.norm_factors=norm_factors
         self.dataset=dataset
-
+        self.domains=domains
+        
         if dataset=='cifar100':
             print('Using cifar 100 dataset')
             self.class_mapping=cifar100_map
@@ -331,9 +529,24 @@ class ShockGraphDataset(Dataset):
         elif dataset=='tign':
             print('Using tiny imagenet dataset')
             self.class_mapping=tign_map
-        else:
+        elif dataset=='mign':
+            print('Using mini imagenet dataset')
+            self.class_mapping=mign_map
+        elif dataset=='office31':
             print('Using office 31 dataset')
             self.class_mapping=office31_map
+        elif dataset=='pacs':
+            print('Using PACS dataset')
+            self.class_mapping=pacs_map
+        elif dataset=='vlcs':
+            print('Using VLCS dataset')
+            self.class_mapping=vlcs_map
+        elif dataset=='icon':
+            print('Using icon dataset')
+            self.class_mapping=icon_map
+        else:
+            print('Using Office home dataset')
+            self.class_mapping=officehome_map
             
         self.__gen_file_list()
         self.__preprocess_graphs()
@@ -372,6 +585,51 @@ class ShockGraphDataset(Dataset):
         graph.ndata['x']=torch.from_numpy(spp_map)
         return graph,label
 
+    def __swap(self,M):
+        flip=random.randint(0,1)
+        flip=self.flip_pp
+        if flip:
+            M[:,[15,9]]=M[:,[9,15]]
+            M[:,[16,10]]=M[:,[10,16]]
+            M[:,[17,11]]=M[:,[11,17]]
+            M[:,[18,12]]=M[:,[12,18]]
+            M[:,[19,13]]=M[:,[13,19]]
+            M[:,[20,14]]=M[:,[14,20]]
+            M[:,[24,21]]=M[:,[21,24]]
+            M[:,[25,22]]=M[:,[22,25]]
+            M[:,[26,23]]=M[:,[23,26]]
+            M[:,[34,31]]=M[:,[31,34]]
+            M[:,[35,32]]=M[:,[32,35]]
+            M[:,[36,33]]=M[:,[33,36]]
+            M[:,[44,41]]=M[:,[41,44]]
+            M[:,[45,42]]=M[:,[42,45]]
+            M[:,[46,43]]=M[:,[43,46]]
+            M[:,[54,51]]=M[:,[51,54]]
+            M[:,[55,52]]=M[:,[52,55]]
+            M[:,[56,53]]=M[:,[53,56]]
+            
+    def __read_cemv_file(self,fid):
+
+        con_points=[]
+        file=open(fid,'r')
+        lines= file.read().splitlines() 
+        start = [s for s,e in enumerate(lines) if e == '[BEGIN CONTOUR]']
+        for c in start:
+            numb_points=int(lines[c+1].split('=')[1])
+            start=c+2
+            for idx in range(start,start+numb_points):
+                b_start=lines[idx].rfind('[')
+                b_stop=lines[idx].rfind(']')
+                point=lines[idx][b_start+1:b_stop].split(',')
+                x=float(point[0])
+                y=float(point[1])
+                con_points.append((x,y))
+
+
+        file.close()
+
+        return con_points
+
     def __preprocess_adj_numpy(self,adj, symmetric=True):
         adj = adj + np.eye(adj.shape[0])
         adj = self.__normalize_adj_numpy(adj, symmetric)
@@ -408,15 +666,22 @@ class ShockGraphDataset(Dataset):
         return a_norm
         
     def __gen_file_list(self):
-        self.files=glob.glob(self.directory+'/*.h5')
-        self.files.sort()
+        if len(self.domains)==0:
+            self.files=glob.glob(self.directory+'/*.h5')
+        else:
+            self.files=glob.glob(self.domains[0]+'/*.h5')
+            print('Using domain:',self.domains[0])
+            for idx in range(1,len(self.domains)):
+                self.files.extend(glob.glob(self.domains[idx]+'/*.h5'))
+                print('Using domain:',self.domains[idx])
+        #self.files.sort()
         
     def __compute_spp_map(self, F_matrix,cells):
         grid=np.linspace(0,self.image_size,cells+1)
         grid_map=defaultdict(list)
         
         for idx in range(F_matrix.shape[0]):
-            pts=F_matrix[idx,:]
+            pts=np.clip(F_matrix[idx,:2],0.0,self.image_size-0.001)
             xloc=max(np.searchsorted(grid,pts[0])-1,0,0)
             yloc=max(np.searchsorted(grid,pts[1])-1,0,0)
             grid_map[(xloc,yloc)].append(idx)
@@ -441,12 +706,15 @@ class ShockGraphDataset(Dataset):
     def __preprocess_graphs(self):
 
         for fid in tqdm(self.files):
-            print('Working on ',fid)
             adj_matrix,features,edge_features=self.__read_shock_graph(fid)
             
             obj=os.path.basename(fid)
-            if self.dataset=='tign':
+            if self.dataset=='tign' or self.dataset=='mign' or self.dataset=='pacs':
                 class_name=obj[:obj.find('_')]
+            elif self.dataset=='vlcs':
+                class_name=obj[:obj.find('-')]
+            elif self.dataset=='icon':
+                class_name=obj[:obj.find('+')]
             else:
                 obj=re.split(r'[0-9].*',obj)[0]
                 class_name=obj[:obj.rfind('_')]
@@ -455,19 +723,10 @@ class ShockGraphDataset(Dataset):
             grid_cell=self.__compute_spp_map(features[0],self.grid)
 
             self.__recenter(features[0],absolute=True)
-
-            if self.app == False:
-                F_pruned=np.delete(features[0],np.s_[28:features[0].shape[1]],1)
-                mask_pruned=np.delete(features[1],np.s_[28:features[1].shape[1]],1)
-            else:
-                F_pruned=np.delete(features[0],np.s_[28:58],1)
-                mask_pruned=np.delete(features[1],np.s_[28:58],1)
-                
-            new_tuple=(F_pruned,mask_pruned)
             
             self.adj_matrices.append(adj_matrix)
             self.sg_labels.append(label)
-            self.sg_features.append(new_tuple)
+            self.sg_features.append(features)
             self.grid_mapping.append(grid_cell)
             
             if self.cache:
@@ -652,138 +911,6 @@ class ShockGraphDataset(Dataset):
         if factor is None:
             factor=self.factor
             
-        # radius of shock point
-        if absolute:
-
-            rad_scale=self.norm_factors['rad_scale']
-            angle_scale=self.norm_factors['angle_scale']
-            length_scale=self.norm_factors['length_scale']
-            curve_scale=self.norm_factors['curve_scale']
-            poly_scale=self.norm_factors['poly_scale']
- 
-            # scale shock radius
-            F_matrix[:,2] /= rad_scale
-
-            # scale shock curvature
-            F_matrix[:,28] /= curve_scale
-            F_matrix[:,38] /= curve_scale
-            F_matrix[:,48] /= curve_scale
-
-            # scale plus curvature
-            F_matrix[:,31] /= curve_scale
-            F_matrix[:,41] /= curve_scale
-            F_matrix[:,51] /= curve_scale
-
-            # scale minus curvature
-            F_matrix[:,34] /= curve_scale
-            F_matrix[:,44] /= curve_scale
-            F_matrix[:,54] /= curve_scale
-
-            # scale shock length
-            F_matrix[:,29] /= length_scale
-            F_matrix[:,39] /= length_scale
-            F_matrix[:,49] /= length_scale
-
-            # scale plus length
-            F_matrix[:,32] /= length_scale
-            F_matrix[:,42] /= length_scale
-            F_matrix[:,52] /= length_scale
-
-            # scale minus length
-            F_matrix[:,35] /= length_scale
-            F_matrix[:,45] /= length_scale
-            F_matrix[:,55] /= length_scale
-
-            # scale shock angle
-            F_matrix[:,30] /= angle_scale
-            F_matrix[:,40] /= angle_scale
-            F_matrix[:,50] /= angle_scale
-
-            # scale plus angle
-            F_matrix[:,33] /= angle_scale
-            F_matrix[:,43] /= angle_scale
-            F_matrix[:,53] /= angle_scale
-
-            # scale minus angle
-            F_matrix[:,36] /= angle_scale
-            F_matrix[:,46] /= angle_scale
-            F_matrix[:,56] /= angle_scale
-
-            # scale poly scale
-            F_matrix[:,37] /= poly_scale
-            F_matrix[:,47] /= poly_scale
-            F_matrix[:,57] /= poly_scale
-
-        else:
-
-            # scale radius
-            rad_scale=np.max(F_matrix[:,2])
-            F_matrix[:,2] /= rad_scale
-
-            curve_scale=np.max(np.abs(np.concatenate((F_matrix[:,28],F_matrix[:,38],F_matrix[:,48],
-                                                      F_matrix[:,31],F_matrix[:,41],F_matrix[:,51],
-                                                      F_matrix[:,34],F_matrix[:,44],F_matrix[:,54]),axis=0)))
-
-            # scale shock curvature
-            F_matrix[:,28] /= curve_scale
-            F_matrix[:,38] /= curve_scale
-            F_matrix[:,48] /= curve_scale
-
-            # scale plus curvature
-            F_matrix[:,31] /= curve_scale
-            F_matrix[:,41] /= curve_scale
-            F_matrix[:,51] /= curve_scale
-
-            # scale minus curvature
-            F_matrix[:,34] /= curve_scale
-            F_matrix[:,44] /= curve_scale
-            F_matrix[:,54] /= curve_scale
-
-            length_scale=np.max(np.abs(np.concatenate((F_matrix[:,29],F_matrix[:,39],F_matrix[:,49],
-                                                       F_matrix[:,32],F_matrix[:,42],F_matrix[:,52],
-                                                       F_matrix[:,35],F_matrix[:,45],F_matrix[:,55]),axis=0)))
-            
-            # scale shock length
-            F_matrix[:,29] /= length_scale
-            F_matrix[:,39] /= length_scale
-            F_matrix[:,49] /= length_scale
-
-            # scale plus length
-            F_matrix[:,32] /= length_scale
-            F_matrix[:,42] /= length_scale
-            F_matrix[:,52] /= length_scale
-
-            #scale minus length
-            F_matrix[:,35] /= length_scale
-            F_matrix[:,45] /= length_scale
-            F_matrix[:,55] /= length_scale
-
-            angle_scale=np.max(np.abs(np.concatenate((F_matrix[:,30],F_matrix[:,40],F_matrix[:,50],
-                                                      F_matrix[:,33],F_matrix[:,43],F_matrix[:,53],
-                                                      F_matrix[:,36],F_matrix[:,46],F_matrix[:,56]),axis=0)))
-
-
-            # scale shock angle
-            F_matrix[:,30] /= angle_scale
-            F_matrix[:,40] /= angle_scale
-            F_matrix[:,50] /= angle_scale
-
-            # scale plus angle
-            F_matrix[:,33] /= angle_scale
-            F_matrix[:,43] /= angle_scale
-            F_matrix[:,53] /= angle_scale
-
-            #scale minus angle
-            F_matrix[:,36] /= angle_scale
-            F_matrix[:,46] /= angle_scale
-            F_matrix[:,56] /= angle_scale
-
-            poly_scale=np.max(np.abs(np.concatenate((F_matrix[:,37],F_matrix[:,47],F_matrix[:,57]),axis=0)))
-
-            F_matrix[:,37] /= poly_scale
-            F_matrix[:,47] /= poly_scale
-            F_matrix[:,57] /= poly_scale
-
         # theta of node
         F_matrix[:,3] /= 2.0*math.pi
         F_matrix[:,4] /= 2.0*math.pi
@@ -904,10 +1031,13 @@ class ShockGraphDataset(Dataset):
         # read in features
         feature_data=fid.get('feature')
         temp=np.array(feature_data).astype(np.float32)
-        sg_features=temp[:,:67]
-        sg_features=np.delete(sg_features,[38,39,40,51,52,53,64,65,66],axis=1)
-        color_features=temp[:,127:]
-        F_matrix=np.concatenate((sg_features,color_features),axis=1)
+        sg_features=temp[:,:28]
+
+        if self.node_app:
+            color_features=temp[:,127:]/255.0
+            F_matrix=np.concatenate((sg_features,color_features),axis=1)
+        else:
+            F_matrix=sg_features
         
         # read in adj matrix
         adj_data=fid.get('adj_matrix')
@@ -929,7 +1059,7 @@ class ShockGraphDataset(Dataset):
         edge_matrix[:,11] /= poly_scale
         edge_matrix[:,12:] /= 255.0
 
-        if self.app==False:
+        if self.edge_app==False:
             edge_matrix=edge_matrix[:,:12]
             
         edge_features=np.zeros((adj_matrix.shape[0],adj_matrix.shape[1],edge_matrix.shape[1]-2),dtype=np.float32)
