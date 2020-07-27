@@ -398,6 +398,71 @@ mign_map={'n01532829':0,
           'n13054560':62,
           'n13133613':63}
 
+pacs_map={'dog':0,
+          'elephant':1,
+          'giraffe':2,
+          'guitar':3,
+          'horse':4,
+          'house':5,
+          'person':6}
+
+vlcs_map={'bird':0,
+          'car':1,
+          'chair':2,
+          'dog':3,
+          'person':4}
+
+icon_map={"airplane":0,
+          "arrow_directions":1,
+          "ball":2,
+          "biking":3,
+          "bird":4,
+          "blade":5,
+          "boat":6,
+          "books":7,
+          "building":8,
+          "bunny_ears":9,
+          "cartwheeling":10,
+          "clock":11,
+          "cloud":12,
+          "disk":13,
+          "drinks":14,
+          "emotion_face":15,
+          "envelope":16,
+          "family":17,
+          "fast_train":18,
+          "feline":19,
+          "flag":20,
+          "flower":21,
+          "footwear":22,
+          "golfing":23,
+          "hand":24,
+          "hat":25,
+          "heart":26,
+          "holding_hands":27,
+          "japanese_ideograph":28,
+          "kiss":29,
+          "lock":30,
+          "mailbox":31,
+          "marine_animals":32,
+          "medal":33,
+          "money":34,
+          "monkey":35,
+          "moon":36,
+          "mountain":37,
+          "numbers":38,
+          "phone":39,
+          "prohibit_sign":40,
+          "star":41,
+          "surfing":42,
+          "tree":43,
+          "umbrella":44,
+          "vehicle":45,
+          "water_polo":46,
+          "worker":47,
+          "wrestling":48,
+          "writing_utensil":49}
+
 def fixAngleMPiPi_new_vector(vec):
     output=np.zeros(np.shape(vec))
     it=np.nditer(vec,flags=['f_index'])
@@ -426,7 +491,7 @@ def fixAngle2PiPi_new_vector(vec):
 
 class ShockGraphDataset(Dataset):
     'Generates data for Keras'
-    def __init__(self,directory,dataset,norm_factors,node_app=False,edge_app=False,cache=True,symmetric=False,data_augment=False,flip_pp=False,grid=8):
+    def __init__(self,directory,dataset,norm_factors,node_app=False,edge_app=False,cache=True,symmetric=False,data_augment=False,flip_pp=False,grid=8,domains=[]):
         'Initialization'
         
         self.directory = directory
@@ -451,6 +516,7 @@ class ShockGraphDataset(Dataset):
         self.grid_mapping=[]
         self.norm_factors=norm_factors
         self.dataset=dataset
+        self.domains=domains
         
         if dataset=='cifar100':
             print('Using cifar 100 dataset')
@@ -473,6 +539,15 @@ class ShockGraphDataset(Dataset):
         elif dataset=='office31':
             print('Using office 31 dataset')
             self.class_mapping=office31_map
+        elif dataset=='pacs':
+            print('Using PACS dataset')
+            self.class_mapping=pacs_map
+        elif dataset=='vlcs':
+            print('Using VLCS dataset')
+            self.class_mapping=vlcs_map
+        elif dataset=='icon':
+            print('Using icon dataset')
+            self.class_mapping=icon_map
         else:
             print('Using Office home dataset')
             self.class_mapping=officehome_map
@@ -580,8 +655,15 @@ class ShockGraphDataset(Dataset):
         return a_norm
         
     def __gen_file_list(self):
-        self.files=glob.glob(self.directory+'/*.h5')
-        self.files.sort()
+        if len(self.domains)==0:
+            self.files=glob.glob(self.directory+'/*.h5')
+        else:
+            self.files=glob.glob(self.domains[0]+'/*.h5')
+            print('Using domain:',self.domains[0])
+            for idx in range(1,len(self.domains)):
+                self.files.extend(glob.glob(self.domains[idx]+'/*.h5'))
+                print('Using domain:',self.domains[idx])
+        #self.files.sort()
         
     def __compute_spp_map(self, F_matrix,cells):
         grid=np.linspace(0,self.image_size,cells+1)
@@ -616,8 +698,12 @@ class ShockGraphDataset(Dataset):
             adj_matrix,features=self.__read_shock_graph(fid)
 
             obj=os.path.basename(fid)
-            if self.dataset=='tign' or self.dataset=='mign':
+            if self.dataset=='tign' or self.dataset=='mign' or self.dataset=='pacs':
                 class_name=obj[:obj.find('_')]
+            elif self.dataset=='vlcs':
+                class_name=obj[:obj.find('-')]
+            elif self.dataset=='icon':
+                class_name=obj[:obj.find('+')]
             else:
                 obj=re.split(r'[0-9].*',obj)[0]
                 class_name=obj[:obj.rfind('_')]
