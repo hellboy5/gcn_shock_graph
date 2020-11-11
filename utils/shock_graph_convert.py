@@ -350,7 +350,7 @@ def check_paths(G,paths):
 
     return flag
         
-def get_paths(A):
+def get_paths(A,color_space):
     
     G=nx.from_numpy_matrix(A)
     components_visited=set()
@@ -483,6 +483,10 @@ def get_paths(A):
         plus_length,plus_totalCurvature,plus_angle=computeCurveStats(plus_curve)
         minus_length,minus_totalCurvature,minus_angle=computeCurveStats(minus_curve)
 
+        points=sample_fragment(shock_curve,theta,phi,radius)
+
+        avg_color=get_frag_average_color(points,color_space)
+
         if len(plus_curve)==0:
             plus_length         = shock_length
             plus_totalCurvature = shock_totalCurvature
@@ -525,7 +529,8 @@ def get_paths(A):
                          MCurve=minus_totalCurvature,
                          MLength=minus_length,
                          MAngle=minus_angle,
-                         PolyArea=area)
+                         PolyArea=area,
+                         AvgColor=avg_color)
           
         curve_stats[overall_key]=stats
 
@@ -1329,14 +1334,14 @@ def convertEsfFile(esf_file,image_file,con_file,coarse):
      
      if coarse:
          print('Coarsening Graph')
-         G,paths=get_paths(adj_matrix)
+         G,paths=get_paths(adj_matrix,I)
          flag=check_paths(G,paths)
          if flag:
              print('All paths check out!! good!')
          else:
              print('ERRORPATH: not all paths checked')
          coarsen_graph(paths)
-         adj_matrix,feature_matrix=compute_adj_feature_matrix(edge_features,NI,NJ)
+         adj_matrix,feature_matrix,edge_matrices=compute_adj_feature_matrix(edge_features,NI,NJ)
          #vis(G,I,feature_matrix[:,:2],paths)
 
          
