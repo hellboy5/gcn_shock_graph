@@ -5,33 +5,72 @@ import dgl.nn.pytorch as conv
 import torch.nn.functional as F
 from .spp_pooling import SppPooling
 from .cov_pooling import CovPooling
+from .graph_norm import GraphNorm
+from .compute_hist_features import HistFeatures
 
+#Mish - "Mish: A Self Regularized Non-Monotonic Neural Activation Function"
+#https://arxiv.org/abs/1908.08681v1
+#implemented for PyTorch / FastAI by lessw2020
+#github: https://github.com/lessw2020/mish
+
+class Mish(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        #inlining this saves 1 second per epoch (V100 GPU) vs having a temp x and then returning x(!)
+        return x *( torch.tanh(F.softplus(x)))
+        
 class Classifier(nn.Module):
     def __init__(self, in_dim, hidden_dim, n_classes,hidden_layers,ctype,hops,readout,
-                 activation_func,dropout,grid,K,device):
+                 activation_func,dropout,grid,K,norm,device):
         super(Classifier, self).__init__()
         self.device      = device
         self.readout     = readout
         self.layers      = nn.ModuleList()
-        self.batch_norms = nn.ModuleList() 
+        self.n_layers    = nn.ModuleList() 
         self.grid        = grid
         self.K           = K
         self.hidden_dim  = hidden_dim
+        self.norm        = norm
 
+        self.mish = Mish()
+        
         # input layer
         if ctype == 'tagconv':
             self.layers.append(conv.TAGConv(in_dim,hidden_dim,hops,activation=activation_func))
         else:
             self.layers.append(conv.SGConv(in_dim,hidden_dim,hops,cached=False,norm=activation_func))
-        self.batch_norms.append(nn.BatchNorm1d(hidden_dim))
-                
+
+        if self.norm == 'batch':
+            self.n_layers.append(nn.BatchNorm1d(hidden_dim))
+        elif self.norm == 'layer':
+            self.n_layers.append(nn.LayerNorm(hidden_dim,elementwise_affine=False))
+        elif self.norm == 'group':
+            self.n_layers.append(nn.GroupNorm(16,hidden_dim))
+        elif self.norm == 'instance':
+            self.n_layers.append(nn.InstanceNorm1d(hidden_dim))
+        else:
+            self.n_layers.append(GraphNorm(hidden_dim,affine=False))
+            
         # hidden layers
         for k in range(0,hidden_layers):
             if ctype == 'tagconv':
                 self.layers.append(conv.TAGConv(hidden_dim,hidden_dim,hops,activation=activation_func))
             else:
                 self.layers.append(conv.SGConv(hidden_dim,hidden_dim,hops,cached=False,norm=activation_func))
-            self.batch_norms.append(nn.BatchNorm1d(hidden_dim))
+
+            if self.norm == 'batch':
+                self.n_layers.append(nn.BatchNorm1d(hidden_dim))
+            elif self.norm == 'layer':
+                self.n_layers.append(nn.LayerNorm(hidden_dim,elementwise_affine=False))
+            elif self.norm == 'group':
+                self.n_layers.append(nn.GroupNorm(16,hidden_dim))
+            elif self.norm == 'instance':
+                self.n_layers.append(nn.InstanceNorm1d(hidden_dim))
+            else:
+                self.n_layers.append(GraphNorm(hidden_dim,affine=False))
+        
             
         # dropout layer
         self.dropout=nn.Dropout(p=dropout)

@@ -46,9 +46,11 @@ def main(args):
     length_scale=config_file['length_scale']
     curve_scale=config_file['curve_scale']
     poly_scale=config_file['poly_scale']
+    domains=config_file['domains']
     batch_io=args.batch_size
     epochs=args.epochs
     bdir=os.path.basename(train_dir)
+    print(domains)
     
     input_dim=58
     if napp:
@@ -59,7 +61,7 @@ def main(args):
         
     norm_factors={'rad_scale':rad_scale,'angle_scale':angle_scale,'length_scale':length_scale,'curve_scale':curve_scale,'poly_scale':poly_scale}
 
-    prefix='data-'+str(bdir)+':'+str(dataset)+'_m-tag_ni-'+str(input_dim)+'_nh-'+str(args.n_hidden)+'_lay-'+str(args.n_layers)+'_hops-'+str(args.hops)+'_napp-'+str(napp)+'_eapp-'+str(eapp)+'_do-'+str(args.dropout)+'_ro-'+str(args.readout)
+    prefix='data-'+str(bdir)+':'+str(dataset)+'_m-tag_ni-'+str(input_dim)+'_nh-'+str(args.n_hidden)+'_lay-'+str(args.n_layers)+'_hops-'+str(args.hops)+'_napp-'+str(napp)+'_eapp-'+str(eapp)+'_do-'+str(args.dropout)+'_ro-'+str(args.readout)+'_norm-'+str(args.norm)
 
     if args.readout == 'spp':
         extra='_ng-'+str(args.n_grid)
@@ -71,7 +73,8 @@ def main(args):
     print('saving to prefix: ', prefix)
     
     # create train dataset
-    trainset=ShockGraphDataset(train_dir,dataset,norm_factors,node_app=napp,edge_app=eapp,cache=cache_io,symmetric=symm_io,data_augment=apply_da,grid=args.n_grid)
+    trainset=ShockGraphDataset(train_dir,dataset,norm_factors,node_app=napp,edge_app=eapp,cache=cache_io,symmetric=symm_io,data_augment=apply_da,grid=args.n_grid,
+                               domains=domains)
 
     # Use PyTorch's DataLoader and the collate function
     # defined before.
@@ -94,10 +97,11 @@ def main(args):
                        args.dropout,
                        args.n_grid,
                        args.K,
+                       args.norm,
                        device)
-
+        
     loss_func = nn.CrossEntropyLoss()
-     
+
     # define the optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     model = model.to(device)
@@ -161,6 +165,8 @@ if __name__ == '__main__':
                         help="number of grid cells")                                    
     parser.add_argument("--K", type=float, default=100,
                         help="sort pooling keep K nodes")                                    
+    parser.add_argument("--norm", type=str, default='batch',
+                        help="type of normalization (batch/layer/graph/instance/none)")                                    
 
     args = parser.parse_args()
     print(args)
