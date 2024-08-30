@@ -1,7 +1,7 @@
 import re
 import sys
 import os
-import scipy.misc
+import cv2
 import numpy as np
 import h5py
 import math
@@ -31,12 +31,30 @@ edge_mapping=defaultdict(list)
 adj_nodes_mapping=defaultdict(list)
 Sample=namedtuple('Sample','id pt type radius theta speed phi plus_pt \
 minus_pt plus_theta minus_theta')
-CurveProps=namedtuple('CurveProps','SCurve SLength SAngle PCurve PLength PAngle MCurve MLength MAngle PolyArea AvgColor')
+CurveProps=namedtuple('CurveProps','SCurve SLength SAngle PCurve PLength PAngle MCurve MLength MAngle PolyArea AvgColor HistColor')
 highest_degree=0
 special_2_nodes=set()
 revisit_nodes=set()
 ZERO_TOLERANCE=1E-1
 
+
+def get_histogram(coords,color_space,numb_bins=21):
+    if len(color_space.shape) == 2:
+        print('gray scale converting to color')
+        color_space=np.repeat(color_space[:,:,np.newaxis],3,axis=2)
+
+    samples=[coords[:,1],coords[:,0]]
+    
+    chan1_values  = ndimage.map_coordinates(color_space[:,:,2],samples,mode='nearest')
+    chan2_values  = ndimage.map_coordinates(color_space[:,:,1],samples,mode='nearest')
+    chan3_values  = ndimage.map_coordinates(color_space[:,:,0],samples,mode='nearest')
+
+    chan1_hist,_ = np.histogram(chan1_values,bins=numb_bins,range=(0.0,255.0))
+    chan2_hist,_ = np.histogram(chan2_values,bins=numb_bins,range=(0.0,255.0))
+    chan3_hist,_ = np.histogram(chan3_values,bins=numb_bins,range=(0.0,255.0))
+    
+    return (chan1_hist,chan2_hist,chan3_hist)
+    
 def get_frag_average_color(coords,color_space):
 
     if len(color_space.shape) == 2:
@@ -508,7 +526,7 @@ def get_paths(A,color_space):
             minus_curve=np.flip(minus_curve,0)
             poly.extend(minus_curve)
             poly.append(shock_curve[0])
-            totals=zip(*poly)
+            totals=list(zip(*poly))
             xpoly=totals[0]
             ypoly=totals[1]
             area=polyArea(np.array(totals[0]),np.array(totals[1]))
@@ -796,6 +814,25 @@ def computeCurveStats(curve):
 
      return length,totalCurvature,totalAngleChange
 
+def sample_node(shock,radius):
+
+    sample_points=np.array([]).reshape(0,2)
+    rad_samples=np.linspace(0,1,11)*radius
+    angles_samples=(pi/180.0)*np.linspace(0,360,37)
+
+    for rad in rad_samples:
+        ray_points=np.zeros((len(angles_samples),2))
+        for idx in range(len(angles_samples)):
+            theta=angles_samples[idx]
+            pt = translatePoint(shock,theta,rad)
+            ray_points[idx,0]=pt[0]
+            ray_points[idx,1]=pt[1]
+
+        sample_points=np.vstack((sample_points,ray_points))
+
+    return sample_points
+        
+        
 def sample_fragment(shock,theta,phi,radius):
 
     spacing=[0.0,0.2,0.4,0.6,0.8]
@@ -816,7 +853,7 @@ def sample_fragment(shock,theta,phi,radius):
     return sample_points
             
 
-def compute_edge_stats(color_space):
+def compute_edge_stats(color_space,numb_bins):
 
     for key,value in edge_to_samples.items():
           start_idx=node_mapping[int(key[0])].id.index(int(value[0]))
@@ -850,6 +887,8 @@ def compute_edge_stats(color_space):
 
           avg_color=get_frag_average_color(points,color_space)
 
+          hist_color=get_histogram(points,color_space,numb_bins)
+          
           # np.savetxt(str(key[0])+'_s_to_t_'+str(key[1])+'.txt',points,delimiter=' ')
           # np.savetxt(str(key[0])+'_s_to_t_'+str(key[1])+'_avg.fmt',avg_color,delimiter=' ')
           
@@ -880,7 +919,7 @@ def compute_edge_stats(color_space):
                minus_curve.reverse()
                poly.extend(minus_curve)
                poly.append(shock_curve[0])
-               totals=zip(*poly)
+               totals=list(zip(*poly))
                area=polyArea(np.array(totals[0]),np.array(totals[1]))
 
         
@@ -901,14 +940,15 @@ def compute_edge_stats(color_space):
                            MLength=minus_length,
                            MAngle=minus_angle,
                            PolyArea=area,
-                           AvgColor=avg_color)
+                           AvgColor=avg_color,
+                           HistColor=hist_color)
           
           curve_stats[key]=stats
 
           
 def getLengthSampNode():
      length=0
-     for value in samp_to_node_mapping.itervalues():
+     for value in samp_to_node_mapping.values():
           length=length+len(value)
      return length
 
@@ -1145,7 +1185,7 @@ def compute_sorted_order():
           node_order[key]=value
           order_mapping[value]=key
           
-def compute_adj_feature_matrix(edge_features,NI,NJ):
+def compute_adj_feature_matrix(edge_features,NI,NJ,color_space,numb_bins):
 
      # numb nodes
      numb_nodes=len(node_mapping)
@@ -1280,9 +1320,9 @@ def compute_adj_feature_matrix(edge_features,NI,NJ):
 
      return adj_matrix,feature_matrix,edge_matrices
     
-def convertEsfFile(esf_file,image_file,con_file,coarse):
+def convertEsfFile(esf_file,image_file,con_file,coarse,numb_bins):
 
-     I=scipy.misc.imread(image_file)
+     I=cv2.imread(image_file)
      NI=I.shape[0]
      NJ=I.shape[1]
      dims=np.array([NI,NJ])
@@ -1313,12 +1353,12 @@ def convertEsfFile(esf_file,image_file,con_file,coarse):
                                                          edge_offset,numb_edges)
      read_edge_samples(sample_line,lines,sample_data,edge_offset,numb_edges,
                        numb_edge_samples,numb_degen_edges,node_info)
-     compute_edge_stats(I)
+     compute_edge_stats(I,numb_bins)
      compute_sorted_order()
 
          
      adj_matrix,feature_matrix,edge_matrices=compute_adj_feature_matrix(
-         edge_features,NI,NJ)
+         edge_features,NI,NJ,I,numb_bins)
 
      # get shape context
      a = SC()
@@ -1341,7 +1381,7 @@ def convertEsfFile(esf_file,image_file,con_file,coarse):
          else:
              print('ERRORPATH: not all paths checked')
          coarsen_graph(paths)
-         adj_matrix,feature_matrix,edge_matrices=compute_adj_feature_matrix(edge_features,NI,NJ)
+         adj_matrix,feature_matrix,edge_matrices=compute_adj_feature_matrix(edge_features,NI,NJ,I)
          #vis(G,I,feature_matrix[:,:2],paths)
 
          
@@ -1385,9 +1425,10 @@ if __name__ == '__main__':
      parser.add_argument("--esf",type=str,help='Shock Graph file')
      parser.add_argument("--image",type=str,help='Image File')
      parser.add_argument("--con",type=str,help='Contour File')
+     parser.add_argument("--bins",type=int,default=11,help='Number of bins for histograms')
      parser.add_argument("--coarse",type=bool,default=False,
                          help="Coarse graph with only degree 1 and 3 nodes")
      args=parser.parse_args()
      
-     convertEsfFile(args.esf,args.image,args.con,args.coarse)
+     convertEsfFile(args.esf,args.image,args.con,args.coarse,args.bins)
      
