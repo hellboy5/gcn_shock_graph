@@ -7,7 +7,7 @@ import sys
 seterr(all='ignore')
 
 def logspace(d1, d2, n):
-    sp =  [( 10 **(d1 + k * (d2-d1)/(n - 1)))   for k in xrange(0, n -1)]
+    sp =  [( 10 **(d1 + k * (d2-d1)/(n - 1)))   for k in range(0, n -1)]
     sp.append(10 ** d2)
     return sp
     
@@ -33,16 +33,16 @@ class SC(object):
 
     def _dist2(self, x, c):
         result = zeros((len(x), len(c)))
-        for i in xrange(len(x)):
-            for j in xrange(len(c)):
+        for i in range(len(x)):
+            for j in range(len(c)):
                 result[i,j] = euclid_distance(x[i],c[j])
         return result
         
         
     def _get_angles(self, x, c):
         result = zeros((len(x), len(c)))
-        for i in xrange(len(x)):
-            for j in xrange(len(c)):
+        for i in range(len(x)):
+            for j in range(len(c)):
                 result[i,j] = get_angle(x[i],c[j])
         return result
         
@@ -64,7 +64,7 @@ class SC(object):
 
         r_bin_edges = logspace(log10(self.r_inner),log10(self.r_outer),self.nbins_r)  
         r_array_q = zeros((len(query),len(points)), dtype=int)
-        for m in xrange(self.nbins_r):
+        for m in range(self.nbins_r):
            r_array_q +=  (r_array_n < r_bin_edges[m])
 
         fz = r_array_q > 0
@@ -82,9 +82,9 @@ class SC(object):
 
         
         BH = zeros((len(query),self.nbins))
-        for i in xrange(len(query)):
+        for i in range(len(query)):
             sn = zeros((self.nbins_r, self.nbins_theta))
-            for j in xrange(len(points)):
+            for j in range(len(points)):
                 if (fz[i, j]):
                     sn[r_array_q[i, j] - 1, int(theta_array_q[i, j] - 1)] += 1
             BH[i] = sn.reshape(self.nbins)
