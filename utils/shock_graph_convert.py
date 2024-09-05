@@ -61,20 +61,33 @@ def get_frag_average_color(coords,color_space):
         print('gray scale converting to color')
         color_space=np.repeat(color_space[:,:,np.newaxis],3,axis=2)
 
-    plus_points=coords[:,:2]
-    minus_poitns=coords[:,2:4]
-    points=np.vstack((coords[:,:2],coords[:,2:4]))
-    points=np.tile(points,[1,3])
-
-    xcoord=points[:,[0,2,4]]
-    ycoord=points[:,[1,3,5]]
-    zcoord=np.tile([0,1,2],[xcoord.shape[0],1])
-
-    plus_cs=ndimage.map_coordinates(color_space,[xcoord,ycoord,zcoord],mode='nearest')
-
-    avg_value=np.mean(plus_cs,axis=0)
+    samples=[coords[:,1],coords[:,0]]
     
-    return avg_value
+    chan1_values  = ndimage.map_coordinates(color_space[:,:,2],samples,mode='nearest')
+    chan2_values  = ndimage.map_coordinates(color_space[:,:,1],samples,mode='nearest')
+    chan3_values  = ndimage.map_coordinates(color_space[:,:,0],samples,mode='nearest')
+
+    chan1_values = np.mean(chan1_values)
+    chan2_values = np.mean(chan2_values)
+    chan3_values = np.mean(chan3_values)
+    
+    return np.array([chan1_values,chan2_values,chan3_values])
+
+
+def get_pixel_image(coords,color_space):
+    
+    if len(color_space.shape) == 2:
+        print('gray scale converting to color')
+        color_space=np.repeat(color_space[:,:,np.newaxis],3,axis=2)
+
+    samples=[coords[:,1],coords[:,0]]
+
+    output=np.zeros((1,3))
+    output[0,0] = ndimage.map_coordinates(color_space[:,:,2],samples,mode='nearest')[0]
+    output[0,1] = ndimage.map_coordinates(color_space[:,:,1],samples,mode='nearest')[0]
+    output[0,2] = ndimage.map_coordinates(color_space[:,:,0],samples,mode='nearest')[0]
+
+    return output
 
 def get_pixel_values(F_matrix,color_space):
 
@@ -85,44 +98,44 @@ def get_pixel_values(F_matrix,color_space):
     pixel_values=np.zeros((F_matrix.shape[0],21),dtype=np.float32)
     
     zero_set=np.array([0.0,0.0])
-    zcoord=np.array([0,1,2])
+    coords= np.zeros((1,2))
     for f in range(F_matrix.shape[0]):
-        sg_xcoord=np.repeat(F_matrix[f,0],3)
-        sg_ycoord=np.repeat(F_matrix[f,1],3)
-        sg_cs=ndimage.map_coordinates(color_space,[sg_xcoord,sg_ycoord,zcoord])
+        coords[0,0]=F_matrix[f,0]
+        coords[0,1]=F_matrix[f,1]
+        sg_cs=get_pixel_image(coords,color_space)
         pixel_values[f,:3]=sg_cs
             
             
-        bp1_xcoord=np.repeat(F_matrix[f,9],3)
-        bp1_ycoord=np.repeat(F_matrix[f,10],3)
-        bp1_cs=ndimage.map_coordinates(color_space,[bp1_xcoord,bp1_ycoord,zcoord])
+        coords[0,0]=F_matrix[f,9]
+        coords[0,1]=F_matrix[f,10]
+        bp1_cs=get_pixel_image(coords,color_space)
         pixel_values[f,3:6]=bp1_cs
 
-        bp1_xcoord=np.repeat(F_matrix[f,15],3)
-        bp1_ycoord=np.repeat(F_matrix[f,16],3)
-        bp1_cs=ndimage.map_coordinates(color_space,[bp1_xcoord,bp1_ycoord,zcoord])
+        coords[0,0]=F_matrix[f,15]
+        coords[0,1]=F_matrix[f,16]
+        bp1_cs=get_pixel_image(coords,color_space)
         pixel_values[f,12:15]=bp1_cs
 
         if np.array_equal(F_matrix[f,11:13],zero_set)==False:
-            bp2_xcoord=np.repeat(F_matrix[f,11],3)
-            bp2_ycoord=np.repeat(F_matrix[f,12],3)
-            bp2_cs=ndimage.map_coordinates(color_space,[bp2_xcoord,bp2_ycoord,zcoord])
+            coords[0,0]=F_matrix[f,11]
+            coords[0,1]=F_matrix[f,12]
+            bp2_cs=get_pixel_image(coords,color_space)
             pixel_values[f,6:9]=bp2_cs
 
-            bp2_xcoord=np.repeat(F_matrix[f,17],3)
-            bp2_ycoord=np.repeat(F_matrix[f,18],3)
-            bp2_cs=ndimage.map_coordinates(color_space,[bp2_xcoord,bp2_ycoord,zcoord])
+            bp2_xcoord=F_matrix[f,17]
+            bp2_ycoord=F_matrix[f,18]
+            bp2_cs=get_pixel_image(coords,color_space)
             pixel_values[f,15:18]=bp2_cs
 
         if np.array_equal(F_matrix[f,13:15],zero_set)==False:
-            bp3_xcoord=np.repeat(F_matrix[f,13],3)
-            bp3_ycoord=np.repeat(F_matrix[f,14],3)
-            bp3_cs=ndimage.map_coordinates(color_space,[bp3_xcoord,bp3_ycoord,zcoord])
+            bp3_xcoord=F_matrix[f,13]
+            bp3_ycoord=F_matrix[f,14]
+            bp3_cs=get_pixel_image(coords,color_space)
             pixel_values[f,9:12]=bp3_cs
 
-            bp3_xcoord=np.repeat(F_matrix[f,19],3)
-            bp3_ycoord=np.repeat(F_matrix[f,20],3)
-            bp3_cs=ndimage.map_coordinates(color_space,[bp3_xcoord,bp3_ycoord,zcoord])
+            bp3_xcoord=F_matrix[f,19]
+            bp3_ycoord=F_matrix[f,20]
+            bp3_cs=get_pixel_image(coords,color_space)
             pixel_values[f,18:21]=bp3_cs
 
     return pixel_values
@@ -850,7 +863,9 @@ def sample_fragment(shock,theta,phi,radius):
 
         sample_points=np.vstack((sample_points,ray_points))
 
-    return sample_points
+
+    points=np.vstack((sample_points[:,:2],sample_points[:,2:4]))
+    return points
             
 
 def compute_edge_stats(color_space,numb_bins):
@@ -887,7 +902,10 @@ def compute_edge_stats(color_space,numb_bins):
 
           avg_color=get_frag_average_color(points,color_space)
 
-          hist_color=get_histogram(points,color_space,numb_bins)
+          hist_color=tuple()
+          
+          if numb_bins > 0:
+              hist_color=get_histogram(points,color_space,numb_bins)
           
           # np.savetxt(str(key[0])+'_s_to_t_'+str(key[1])+'.txt',points,delimiter=' ')
           # np.savetxt(str(key[0])+'_s_to_t_'+str(key[1])+'_avg.fmt',avg_color,delimiter=' ')
@@ -929,7 +947,7 @@ def compute_edge_stats(color_space,numb_bins):
           #         plus_totalCurvature,minus_totalCurvature=minus_totalCurvature,plus_totalCurvature
           #         plus_angle,minus_angle=minus_angle,plus_angle
           #         plus_length,minus_length=minus_length,plus_length
-              
+
           stats=CurveProps(SCurve=shock_totalCurvature,
                            SLength=shock_length,
                            SAngle=shock_angle,
@@ -1185,7 +1203,7 @@ def compute_sorted_order():
           node_order[key]=value
           order_mapping[value]=key
           
-def compute_adj_feature_matrix(edge_features,NI,NJ,color_space,numb_bins):
+def compute_adj_feature_matrix(edge_features,NI,NJ,color_space):
 
      # numb nodes
      numb_nodes=len(node_mapping)
@@ -1222,8 +1240,8 @@ def compute_adj_feature_matrix(edge_features,NI,NJ,color_space,numb_bins):
 
           # populate points of node location
           item=node_mapping[key].pt[0]
-          feature_matrix[row][0]=item[1]
-          feature_matrix[row][1]=item[0]
+          feature_matrix[row,0]=item[1]
+          feature_matrix[row,1]=item[0]
               
           locations.append(item)
           degree=len(node_mapping[key].theta)
@@ -1232,45 +1250,45 @@ def compute_adj_feature_matrix(edge_features,NI,NJ,color_space,numb_bins):
           
           #populate radius of node
           item=node_mapping[key].radius[0]
-          feature_matrix[row][2]=item
+          feature_matrix[row,2]=item
 
           #populate theta of node
           start=3
           for idx in range(0,min(len(node_mapping[key].theta),3)):
                item=node_mapping[key].theta[rad_list[idx]]
-               feature_matrix[row][idx+start]=item/(2.0*pi)
+               feature_matrix[row,idx+start]=item/(2.0*pi)
 
           #populate phi of node
           start=6
           for idx in range(0,min(len(node_mapping[key].phi),3)):
                item=node_mapping[key].phi[rad_list[idx]]
-               feature_matrix[row][idx+start]=item/pi
+               feature_matrix[row,idx+start]=item/pi
 
           # populate left_boundary_points of node
           start=9
           for idx in range(0,min(len(node_mapping[key].plus_pt),3)):
                item=node_mapping[key].plus_pt[rad_list[idx]]
-               feature_matrix[row][0+idx*2+start]=item[1]
-               feature_matrix[row][1+idx*2+start]=item[0]
+               feature_matrix[row,0+idx*2+start]=item[1]
+               feature_matrix[row,1+idx*2+start]=item[0]
 
           # populate right_boundary_points of node
           start=15
           for idx in range(0,min(len(node_mapping[key].minus_pt),3)):
                item=node_mapping[key].minus_pt[rad_list[idx]]
-               feature_matrix[row][0+idx*2+start]=item[1]
-               feature_matrix[row][1+idx*2+start]=item[0]
+               feature_matrix[row,0+idx*2+start]=item[1]
+               feature_matrix[row,1+idx*2+start]=item[0]
 
           #populate plus_theta of node
           start=21
           for idx in range(0,min(len(node_mapping[key].plus_theta),3)):
                item=node_mapping[key].plus_theta[rad_list[idx]]
-               feature_matrix[row][idx+start]=item/pi
+               feature_matrix[row,idx+start]=item/pi
 
           #populate minus_theta of node
           start=24
           for idx in range(0,min(len(node_mapping[key].minus_theta),3)):
                item=node_mapping[key].minus_theta[rad_list[idx]]
-               feature_matrix[row][idx+start]=item/pi
+               feature_matrix[row,idx+start]=item/pi
 
           # populate data type
           start=27
@@ -1285,7 +1303,7 @@ def compute_adj_feature_matrix(edge_features,NI,NJ,color_space,numb_bins):
                out=0.75
           else:
                out=1.0
-          feature_matrix[row][start]=out
+          feature_matrix[row,start]=out
 
           start=28
           for idx in range(0,min(len(rad_list),3)):
@@ -1302,21 +1320,121 @@ def compute_adj_feature_matrix(edge_features,NI,NJ,color_space,numb_bins):
 
                edge_matrices[(source_idx,target_idx)]=ef
                
-               feature_matrix[row][0+start]=props.SCurve
-               feature_matrix[row][1+start]=props.SLength
-               feature_matrix[row][2+start]=props.SAngle
-               feature_matrix[row][3+start]=props.PCurve
-               feature_matrix[row][4+start]=props.PLength
-               feature_matrix[row][5+start]=props.PAngle
-               feature_matrix[row][6+start]=props.MCurve
-               feature_matrix[row][7+start]=props.MLength
-               feature_matrix[row][8+start]=props.MAngle
-               feature_matrix[row][9+start]=props.PolyArea
-               feature_matrix[row][10+start]=props.AvgColor[0]
-               feature_matrix[row][11+start]=props.AvgColor[1]
-               feature_matrix[row][12+start]=props.AvgColor[2]
+               feature_matrix[row,0+start]=props.SCurve
+               feature_matrix[row,1+start]=props.SLength
+               feature_matrix[row,2+start]=props.SAngle
+               feature_matrix[row,3+start]=props.PCurve
+               feature_matrix[row,4+start]=props.PLength
+               feature_matrix[row,5+start]=props.PAngle
+               feature_matrix[row,6+start]=props.MCurve
+               feature_matrix[row,7+start]=props.MLength
+               feature_matrix[row,8+start]=props.MAngle
+               feature_matrix[row,9+start]=props.PolyArea
+               feature_matrix[row,10+start]=props.AvgColor[0]
+               feature_matrix[row,11+start]=props.AvgColor[1]
+               feature_matrix[row,12+start]=props.AvgColor[2]
 
                start=start+13
+
+     return adj_matrix,feature_matrix,edge_matrices
+
+
+def compute_adj_feature_matrix_hist(edge_features,NI,NJ,color_space,numb_bins):
+
+     # numb nodes
+     numb_nodes=len(node_mapping)
+     
+     #create adjacency matrix
+     adj_matrix=np.zeros((numb_nodes,numb_nodes))
+
+     #create feature matrix
+     feature_matrix=np.zeros((numb_nodes,edge_features))
+
+     #create edge matrix
+     edge_matrices=defaultdict(list)
+
+     #populate adj_matrix
+     for key in edge_mapping:
+          adj_edges=edge_mapping[key]
+          source_idx=node_order[key]
+          for item in adj_edges:
+               target_idx=node_order[item]
+               adj_matrix[source_idx][target_idx]=1
+
+     #write out feature matrix
+     for key in node_mapping:
+          row=node_order[key]
+          
+          order_list=[]
+          for value in adj_nodes_mapping[key]:
+               order_list.append(node_mapping[value].radius[0])
+          rad_list=np.argsort(order_list)
+
+          # populate points of node location
+          item=node_mapping[key].pt[0]
+          feature_matrix[row,0]=item[1]
+          feature_matrix[row,1]=item[0]
+          
+          #populate radius of node
+          item=node_mapping[key].radius[0]
+          feature_matrix[row,2]=item
+          
+          # populate data type
+          item=node_mapping[key].type
+          if item == 'A':
+               out=0.0
+          elif item == 'S':
+               out=0.25
+          elif item == 'F':
+               out=0.50
+          elif item == 'J':
+               out=0.75
+          else:
+               out=1.0
+          feature_matrix[row,3]=out
+
+          start=4
+          # populate histograms of node
+          if node_mapping[key].radius[0]:
+              samples=sample_node(node_mapping[key].pt[0],node_mapping[key].radius[0])
+              node_hist=get_histogram(samples,color_space,numb_bins)
+
+              feature_matrix[row,(start+numb_bins*0):(start+numb_bins*1)]=node_hist[0]
+              feature_matrix[row,(start+numb_bins*1):(start+numb_bins*2)]=node_hist[1]
+              feature_matrix[row,(start+numb_bins*2):(start+numb_bins*3)]=node_hist[2]
+              
+          start+=numb_bins*3
+          for idx in range(0,min(len(rad_list),3)):
+               source=str(key)
+               target=str(adj_nodes_mapping[key][rad_list[idx]])
+               pair=(source,target)
+               if pair not in curve_stats.keys():
+                    pair=(target,source)                        
+               props=curve_stats[pair]
+               source_idx=node_order[int(pair[0])]
+               target_idx=node_order[int(pair[1])]
+
+               ef=[props.SCurve,props.SLength,props.SAngle,props.PCurve,props.PLength,props.PAngle,props.MCurve,props.MLength,props.MAngle,props.PolyArea,props.HistColor]
+
+               edge_matrices[(source_idx,target_idx)]=ef
+               
+               feature_matrix[row,0+start]=props.SCurve
+               feature_matrix[row,1+start]=props.SLength
+               feature_matrix[row,2+start]=props.SAngle
+               feature_matrix[row,3+start]=props.PCurve
+               feature_matrix[row,4+start]=props.PLength
+               feature_matrix[row,5+start]=props.PAngle
+               feature_matrix[row,6+start]=props.MCurve
+               feature_matrix[row,7+start]=props.MLength
+               feature_matrix[row,8+start]=props.MAngle
+               feature_matrix[row,9+start]=props.PolyArea
+               start+=10
+               
+               feature_matrix[row,(start+numb_bins*0):(start+numb_bins*1)]=props.HistColor[0]
+               feature_matrix[row,(start+numb_bins*1):(start+numb_bins*2)]=props.HistColor[1]
+               feature_matrix[row,(start+numb_bins*2):(start+numb_bins*3)]=props.HistColor[2]
+
+               start+=numb_bins*3
 
      return adj_matrix,feature_matrix,edge_matrices
     
@@ -1336,7 +1454,6 @@ def convertEsfFile(esf_file,image_file,con_file,coarse,numb_bins):
      sample_data=12
      node_info=9
      edge_offset=4
-     edge_features=67
      
      _,numb_nodes=lines[7].split(':')
      _,numb_edges=lines[8].split(':')
@@ -1356,21 +1473,30 @@ def convertEsfFile(esf_file,image_file,con_file,coarse,numb_bins):
      compute_edge_stats(I,numb_bins)
      compute_sorted_order()
 
-         
-     adj_matrix,feature_matrix,edge_matrices=compute_adj_feature_matrix(
-         edge_features,NI,NJ,I,numb_bins)
 
-     # get shape context
-     a = SC()
-     sg_points=np.copy(feature_matrix[:,:2])
-     sg_points[np.abs(sg_points)<1.0e-10]=0.0
-     query=list(map(tuple,sg_points))
-     P=a.compute(query,con_points)
+     if numb_bins > 0 :
+         print('Computing hist features along geometric features')
+         edge_features=4+3*numb_bins+(10+3*numb_bins)*3
+         adj_matrix,feature_matrix,edge_matrices=compute_adj_feature_matrix_hist(
+             edge_features,NI,NJ,I,numb_bins)
+     else:
+         print('Computing Original Stats')
+         edge_features=67
+         adj_matrix,feature_matrix,edge_matrices=compute_adj_feature_matrix(
+             edge_features,NI,NJ,I)
 
-     # get colors
-     colors=get_pixel_values(feature_matrix,I)
+         # get shape context
+         a = SC()
+         sg_points=np.copy(feature_matrix[:,:2])
+         sg_points[np.abs(sg_points)<1.0e-10]=0.0
+         query=list(map(tuple,sg_points))
+         P=a.compute(query,con_points)
+
+         # get colors
+         colors=get_pixel_values(feature_matrix,I)
      
-     feature_matrix=np.concatenate((feature_matrix,P,colors),axis=1)
+         feature_matrix=np.concatenate((feature_matrix,P,colors),axis=1)
+
      
      if coarse:
          print('Coarsening Graph')
@@ -1394,26 +1520,51 @@ def convertEsfFile(esf_file,image_file,con_file,coarse,numb_bins):
      hf.create_dataset('adj_matrix',data=adj_matrix)
      hf.create_dataset('dims',data=dims)
 
-     output_edge=np.zeros((len(edge_matrices),15))
 
-     idx=0
-     for key,value in edge_matrices.items():
-         output_edge[idx,0]=key[0]
-         output_edge[idx,1]=key[1]
-         output_edge[idx,2]=value[0]
-         output_edge[idx,3]=value[1]
-         output_edge[idx,4]=value[2]
-         output_edge[idx,5]=value[3]
-         output_edge[idx,6]=value[4]
-         output_edge[idx,7]=value[5]
-         output_edge[idx,8]=value[6]
-         output_edge[idx,9]=value[7]
-         output_edge[idx,10]=value[8]
-         output_edge[idx,11]=value[9]
-         output_edge[idx,12]=value[10][0]
-         output_edge[idx,13]=value[10][1]
-         output_edge[idx,14]=value[10][2]
-         idx=idx+1
+     if numb_bins > 0:
+         print('Saving edge features with hist')
+         output_edge=np.zeros((len(edge_matrices),2+10+3*numb_bins))
+         idx=0
+         for key,value in edge_matrices.items():
+             output_edge[idx,0]=key[0]
+             output_edge[idx,1]=key[1]
+             output_edge[idx,2]=value[0]
+             output_edge[idx,3]=value[1]
+             output_edge[idx,4]=value[2]
+             output_edge[idx,5]=value[3]
+             output_edge[idx,6]=value[4]
+             output_edge[idx,7]=value[5]
+             output_edge[idx,8]=value[6]
+             output_edge[idx,9]=value[7]
+             output_edge[idx,10]=value[8]
+             output_edge[idx,11]=value[9]
+
+             start=12
+             output_edge[idx,(start+numb_bins*0):(start+numb_bins*1)]=value[10][0]
+             output_edge[idx,(start+numb_bins*1):(start+numb_bins*2)]=value[10][1]
+             output_edge[idx,(start+numb_bins*2):(start+numb_bins*3)]=value[10][2]
+             idx=idx+1
+     else:
+         print('Saving edge features with avg color')
+         output_edge=np.zeros((len(edge_matrices),15))
+         idx=0
+         for key,value in edge_matrices.items():
+             output_edge[idx,0]=key[0]
+             output_edge[idx,1]=key[1]
+             output_edge[idx,2]=value[0]
+             output_edge[idx,3]=value[1]
+             output_edge[idx,4]=value[2]
+             output_edge[idx,5]=value[3]
+             output_edge[idx,6]=value[4]
+             output_edge[idx,7]=value[5]
+             output_edge[idx,8]=value[6]
+             output_edge[idx,9]=value[7]
+             output_edge[idx,10]=value[8]
+             output_edge[idx,11]=value[9]
+             output_edge[idx,12]=value[10][0]
+             output_edge[idx,13]=value[10][1]
+             output_edge[idx,14]=value[10][2]
+             idx=idx+1          
          
      hf.create_dataset('edge_features',data=output_edge)
          
