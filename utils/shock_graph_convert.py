@@ -104,40 +104,66 @@ def get_pixel_values(F_matrix,color_space):
         coords[0,1]=F_matrix[f,1]
         sg_cs=get_pixel_image(coords,color_space)
         pixel_values[f,:3]=sg_cs
-            
-            
+
+        # samples = np.empty(shape=(0,2))
+        # colors  = np.empty(shape=(0,3))
+
+        # samples=np.vstack((samples,coords))
+        # colors=np.vstack((colors,pixel_values[f,:3]))
+        
         coords[0,0]=F_matrix[f,9]
         coords[0,1]=F_matrix[f,10]
         bp1_cs=get_pixel_image(coords,color_space)
         pixel_values[f,3:6]=bp1_cs
 
+        # samples=np.vstack((samples,coords))
+        # colors=np.vstack((colors,pixel_values[f,3:6]))
+        
         coords[0,0]=F_matrix[f,15]
         coords[0,1]=F_matrix[f,16]
         bp1_cs=get_pixel_image(coords,color_space)
         pixel_values[f,12:15]=bp1_cs
 
+        # samples=np.vstack((samples,coords))
+        # colors=np.vstack((colors,pixel_values[f,12:15]))
+                
         if np.array_equal(F_matrix[f,11:13],zero_set)==False:
             coords[0,0]=F_matrix[f,11]
             coords[0,1]=F_matrix[f,12]
             bp2_cs=get_pixel_image(coords,color_space)
             pixel_values[f,6:9]=bp2_cs
 
-            bp2_xcoord=F_matrix[f,17]
-            bp2_ycoord=F_matrix[f,18]
+            # samples=np.vstack((samples,coords))
+            # colors=np.vstack((colors,pixel_values[f,6:9]))
+                            
+            coords[0,0]=F_matrix[f,17]
+            coords[0,1]=F_matrix[f,18]
             bp2_cs=get_pixel_image(coords,color_space)
             pixel_values[f,15:18]=bp2_cs
 
+            # samples=np.vstack((samples,coords))
+            # colors=np.vstack((colors,pixel_values[f,15:18]))
+                        
         if np.array_equal(F_matrix[f,13:15],zero_set)==False:
-            bp3_xcoord=F_matrix[f,13]
-            bp3_ycoord=F_matrix[f,14]
+            coords[0,0]=F_matrix[f,13]
+            coords[0,1]=F_matrix[f,14]
             bp3_cs=get_pixel_image(coords,color_space)
             pixel_values[f,9:12]=bp3_cs
 
-            bp3_xcoord=F_matrix[f,19]
-            bp3_ycoord=F_matrix[f,20]
+            # samples=np.vstack((samples,coords))
+            # colors=np.vstack((colors,pixel_values[f,9:12]))
+            
+            coords[0,0]=F_matrix[f,19]
+            coords[0,1]=F_matrix[f,20]
             bp3_cs=get_pixel_image(coords,color_space)
             pixel_values[f,18:21]=bp3_cs
 
+            # samples=np.vstack((samples,coords))
+            # colors=np.vstack((colors,pixel_values[f,18:21]))
+
+        # np.savetxt(str(f)+'_samples.txt',samples)
+        # np.savetxt(str(f)+'_hist.txt',colors)
+        
     return pixel_values
 
 
@@ -906,7 +932,11 @@ def compute_edge_stats(color_space,numb_bins):
           
           if numb_bins > 0:
               hist_color=get_histogram(points,color_space,numb_bins)
-          
+
+              # gg=np.vstack((hist_color[0],hist_color[1],hist_color[2]))
+              # np.savetxt(str(key[0])+'_s_to_t_'+str(key[1])+'_samples.txt',points)
+              # np.savetxt(str(key[0])+'_s_to_t_'+str(key[1])+'_avg.txt',avg_color)
+                  
           # np.savetxt(str(key[0])+'_s_to_t_'+str(key[1])+'.txt',points,delimiter=' ')
           # np.savetxt(str(key[0])+'_s_to_t_'+str(key[1])+'_avg.fmt',avg_color,delimiter=' ')
           
@@ -1402,7 +1432,14 @@ def compute_adj_feature_matrix_hist(edge_features,NI,NJ,color_space,numb_bins):
               feature_matrix[row,(start+numb_bins*0):(start+numb_bins*1)]=node_hist[0]
               feature_matrix[row,(start+numb_bins*1):(start+numb_bins*2)]=node_hist[1]
               feature_matrix[row,(start+numb_bins*2):(start+numb_bins*3)]=node_hist[2]
-              
+
+              gg=np.vstack((feature_matrix[row,(start+numb_bins*0):(start+numb_bins*1)],
+                            feature_matrix[row,(start+numb_bins*1):(start+numb_bins*2)],
+                            feature_matrix[row,(start+numb_bins*2):(start+numb_bins*3)]))
+
+              # np.savetxt(str(key)+'_samples.txt',samples)
+              # np.savetxt(str(key)+'_hist.txt',gg)
+
           start+=numb_bins*3
           for idx in range(0,min(len(rad_list),3)):
                source=str(key)
@@ -1434,6 +1471,11 @@ def compute_adj_feature_matrix_hist(edge_features,NI,NJ,color_space,numb_bins):
                feature_matrix[row,(start+numb_bins*1):(start+numb_bins*2)]=props.HistColor[1]
                feature_matrix[row,(start+numb_bins*2):(start+numb_bins*3)]=props.HistColor[2]
 
+               # gg=np.vstack((feature_matrix[row,(start+numb_bins*0):(start+numb_bins*1)],
+               #               feature_matrix[row,(start+numb_bins*1):(start+numb_bins*2)],
+               #               feature_matrix[row,(start+numb_bins*2):(start+numb_bins*3)]))
+                            
+               # np.savetxt(pair[0]+'_s_to_t_'+pair[1]+'_hist.txt',gg)
                start+=numb_bins*3
 
      return adj_matrix,feature_matrix,edge_matrices
